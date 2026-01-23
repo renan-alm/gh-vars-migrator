@@ -102,7 +102,7 @@ jobs:
           else
             BINARY_NAME="gh-vars-migrator-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
           fi
-          go build -o "dist/${BINARY_NAME}" -ldflags "-s -w -X main.version=${VERSION}" .
+          go build -o "dist/${BINARY_NAME}" -ldflags "-s -w" .
           echo "Built: dist/${BINARY_NAME}"
         shell: bash
 
@@ -141,7 +141,7 @@ jobs:
           
           # Extract changelog section for this version
           if grep -q "## \[${VERSION}\]" CHANGELOG.md || grep -q "## ${VERSION}" CHANGELOG.md; then
-            awk "/## \[?${VERSION}\]?/,/## \[?[0-9]/ {if (/## \[?[0-9]/ && !/## \[?${VERSION}/) exit; print}" CHANGELOG.md > release_notes.md
+            awk "/## \[?${VERSION}\]?/,/## \[?v?[0-9]/ {if (/## \[?v?[0-9]/ && !/## \[?${VERSION}/) exit; print}" CHANGELOG.md > release_notes.md
             # Remove the version header from the notes
             tail -n +2 release_notes.md > release_notes_clean.md
             mv release_notes_clean.md release_notes.md
