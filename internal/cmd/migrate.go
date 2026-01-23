@@ -93,26 +93,15 @@ func init() {
 	migrateCmd.Flags().BoolVar(&migrateForce, "force", false, "Overwrite existing variables in target")
 
 	// Mark required flags
-	if err := migrateCmd.MarkFlagRequired("source-org"); err != nil {
-		panic(fmt.Sprintf("failed to mark source-org as required: %v", err))
-	}
-	if err := migrateCmd.MarkFlagRequired("target-org"); err != nil {
-		panic(fmt.Sprintf("failed to mark target-org as required: %v", err))
-	}
+	// These should never fail as the flags are defined above
+	_ = migrateCmd.MarkFlagRequired("source-org")
+	_ = migrateCmd.MarkFlagRequired("target-org")
 }
 
 // validateMigrateFlags validates the flags based on the detected migration mode
 func validateMigrateFlags(cmd *cobra.Command, args []string) error {
 	// Suppress usage on runtime errors
 	cmd.SilenceUsage = true
-
-	// Validate required base flags
-	if migrateSourceOrg == "" {
-		return fmt.Errorf("--source-org flag is required")
-	}
-	if migrateTargetOrg == "" {
-		return fmt.Errorf("--target-org flag is required")
-	}
 
 	// Check for conflicting flags
 	if migrateOrgToOrg && (migrateSourceEnv != "" || migrateTargetEnv != "") {
