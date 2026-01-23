@@ -24,6 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dockerfile for containerized builds
 
 ### Technical
-- Built with Go 1.23+
+- Built with Go 1.25+
 - Uses GitHub CLI's go-gh library for API interactions
 - Cobra-based CLI with flag-based command pattern
