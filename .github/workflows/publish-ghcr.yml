@@ -27,8 +27,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          # For workflow_run, checkout the tag that triggered the release
-          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
+          # For workflow_run, use the SHA from the triggering workflow
+          # For PRs, use the PR ref
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
