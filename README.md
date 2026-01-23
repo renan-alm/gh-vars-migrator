@@ -1,6 +1,6 @@
 # gh-vars-migrator
 
-GitHub CLI extension for variables migration between GitHub Organizations.
+GitHub CLI extension for migrating GitHub Actions variables between organizations, repositories, and environments.
 
 ## Installation
 
@@ -37,13 +37,91 @@ go install github.com/renan-alm/gh-vars-migrator@latest
 
 ## Usage
 
-Once installed, run the extension using:
+The `gh-vars-migrator` extension provides a unified `migrate` command that supports three migration modes:
+
+### Migration Modes
+
+1. **Organization to Organization**: Migrate organization-level variables
+2. **Repository to Repository**: Migrate repository-level variables and optionally environment variables
+3. **Environment to Environment**: Migrate environment variables within same or different repositories
+
+### Basic Commands
+
+#### Organization to Organization Migration
+
+Migrate all organization-level variables from one organization to another:
 
 ```bash
-gh vars-migrator
+# Basic migration
+gh vars-migrator migrate --source-org myorg --target-org targetorg --org-to-org
+
+# Dry-run mode (preview changes)
+gh vars-migrator migrate --source-org myorg --target-org targetorg --org-to-org --dry-run
+
+# Force overwrite existing variables
+gh vars-migrator migrate --source-org myorg --target-org targetorg --org-to-org --force
 ```
 
-The extension will authenticate using your GitHub CLI credentials and display your authenticated user information.
+#### Repository to Repository Migration
+
+Migrate repository-level variables from one repository to another:
+
+```bash
+# Basic repo migration
+gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo
+
+# Migrate with environment variables included
+gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --source-env production --target-env production
+
+# Skip environment variable migration
+gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --skip-envs
+```
+
+#### Environment to Environment Migration
+
+Migrate environment variables between environments:
+
+```bash
+# Migrate between environments in the same repository
+gh vars-migrator migrate --source-org myorg --source-repo myrepo --source-env staging --target-env production
+
+# Migrate between environments in different repositories
+gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --source-env staging --target-env production
+```
+
+### Command Options
+
+- `--source-org` (required): Source organization name
+- `--source-repo`: Source repository name (required for repo-to-repo and env migrations)
+- `--target-org` (required): Target organization name
+- `--target-repo`: Target repository name (required for repo-to-repo)
+- `--source-env`: Source environment name (for environment migrations)
+- `--target-env`: Target environment name (for environment migrations)
+- `--org-to-org`: Flag to enable organization-level migration mode
+- `--skip-envs`: Skip environment variable migration during repo-to-repo
+- `--dry-run`: Preview changes without applying them
+- `--force`: Overwrite existing variables in the target
+- `--verbose`: Enable verbose output
+
+### Mode Detection
+
+The migration mode is automatically detected based on the flags provided:
+
+- If `--org-to-org` flag is set → **Organization migration mode**
+- If `--source-env` and `--target-env` are provided → **Environment-only migration mode**
+- Otherwise → **Repository-to-Repository migration mode**
+
+### Additional Commands
+
+Check authentication status:
+```bash
+gh vars-migrator auth
+```
+
+List variables in an organization:
+```bash
+gh vars-migrator list --org myorg
+```
 
 ## Development
 

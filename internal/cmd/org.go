@@ -19,11 +19,16 @@ var (
 )
 
 // orgCmd represents the org command for org-to-org migration
+// Deprecated: Use 'migrate --org-to-org' instead
 var orgCmd = &cobra.Command{
-	Use:   "org",
-	Short: "Migrate variables from one organization to another",
+	Use:        "org",
+	Short:      "Migrate variables from one organization to another (deprecated: use 'migrate --org-to-org')",
+	Deprecated: "use 'migrate --org-to-org' instead",
 	Long: `Migrate all GitHub Actions variables from a source organization 
 to a target organization.
+
+DEPRECATED: This command is deprecated. Please use the 'migrate' command with --org-to-org flag instead:
+  gh vars-migrator migrate --source-org SOURCE --target-org TARGET --org-to-org
 
 This command will:
   1. Fetch all variables from the source organization
@@ -39,7 +44,10 @@ Use --force to overwrite existing variables in the target organization.`,
   gh vars-migrator org --source renan-org --target demo-org-renan
 
   # Force overwrite existing variables
-  gh vars-migrator org --source renan-org --target demo-org-renan --force`,
+  gh vars-migrator org --source renan-org --target demo-org-renan --force
+
+  # RECOMMENDED: Use the new migrate command instead
+  gh vars-migrator migrate --source-org renan-org --target-org demo-org-renan --org-to-org`,
 	RunE: runOrgMigration,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		// Validate required flags
