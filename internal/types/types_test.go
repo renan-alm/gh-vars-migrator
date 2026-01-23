@@ -1,6 +1,9 @@
 package types
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestMigrationResult_AddError(t *testing.T) {
 	result := &MigrationResult{}
@@ -9,9 +12,13 @@ func TestMigrationResult_AddError(t *testing.T) {
 		t.Error("Expected no errors initially")
 	}
 
-	result.AddError(nil)
+	result.AddError(errors.New("test error"))
 	if !result.HasErrors() {
 		t.Error("Expected to have errors after adding one")
+	}
+	
+	if len(result.Errors) != 1 {
+		t.Errorf("Expected 1 error, got %d", len(result.Errors))
 	}
 }
 
