@@ -16,7 +16,7 @@ func TestMigrationResult_AddError(t *testing.T) {
 	if !result.HasErrors() {
 		t.Error("Expected to have errors after adding one")
 	}
-	
+
 	if len(result.Errors) != 1 {
 		t.Errorf("Expected 1 error, got %d", len(result.Errors))
 	}
@@ -39,7 +39,6 @@ func TestMigrationMode_Constants(t *testing.T) {
 	modes := []MigrationMode{
 		ModeRepoToRepo,
 		ModeOrgToOrg,
-		ModeEnvOnly,
 	}
 
 	for _, mode := range modes {

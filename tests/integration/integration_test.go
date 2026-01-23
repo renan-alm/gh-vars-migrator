@@ -27,23 +27,25 @@ func TestEndToEnd_ConfigValidation(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid_repo_to_repo_with_envs",
+			config: &types.MigrationConfig{
+				Mode:        types.ModeRepoToRepo,
+				SourceOwner: "source-org",
+				SourceRepo:  "source-repo",
+				TargetOwner: "target-org",
+				TargetRepo:  "target-repo",
+				SkipEnvs:    false,
+				DryRun:      true,
+			},
+			wantErr: false,
+		},
+		{
 			name: "valid_org_to_org",
 			config: &types.MigrationConfig{
 				Mode:      types.ModeOrgToOrg,
 				SourceOrg: "source-org",
 				TargetOrg: "target-org",
 				Force:     true,
-			},
-			wantErr: false,
-		},
-		{
-			name: "valid_env_only",
-			config: &types.MigrationConfig{
-				Mode:        types.ModeEnvOnly,
-				SourceOwner: "owner",
-				SourceRepo:  "repo",
-				SourceEnv:   "staging",
-				TargetEnv:   "production",
 			},
 			wantErr: false,
 		},
@@ -170,9 +172,9 @@ func TestEndToEnd_ForceUpdateWorkflow(t *testing.T) {
 
 	// With force=true, existing variables should be updated
 	result := &types.MigrationResult{
-		Created: 3,  // 3 new variables
-		Updated: 7,  // 7 existing variables updated due to force flag
-		Skipped: 0,  // 0 skipped because force=true
+		Created: 3, // 3 new variables
+		Updated: 7, // 7 existing variables updated due to force flag
+		Skipped: 0, // 0 skipped because force=true
 	}
 
 	if result.Updated != 7 {
@@ -184,15 +186,16 @@ func TestEndToEnd_ForceUpdateWorkflow(t *testing.T) {
 	}
 }
 
-// TestEndToEnd_EnvironmentMigration tests environment-only migration workflow
-func TestEndToEnd_EnvironmentMigration(t *testing.T) {
-	// Test migrating from staging to production
+// TestEndToEnd_EnvironmentAutoDiscoveryWorkflow tests auto-discovery of environments
+func TestEndToEnd_EnvironmentAutoDiscoveryWorkflow(t *testing.T) {
+	// Test repo-to-repo migration with auto-discovered environments
 	cfg := &types.MigrationConfig{
-		Mode:        types.ModeEnvOnly,
+		Mode:        types.ModeRepoToRepo,
 		SourceOwner: "my-org",
 		SourceRepo:  "my-repo",
-		SourceEnv:   "staging",
-		TargetEnv:   "production",
+		TargetOwner: "target-org",
+		TargetRepo:  "target-repo",
+		SkipEnvs:    false, // Auto-discover environments
 		DryRun:      true,
 	}
 
@@ -200,24 +203,20 @@ func TestEndToEnd_EnvironmentMigration(t *testing.T) {
 		t.Fatalf("Config validation failed: %v", err)
 	}
 
-	// Verify environment names are set correctly
-	if cfg.SourceEnv != "staging" {
-		t.Errorf("Expected source env 'staging', got '%s'", cfg.SourceEnv)
+	// Verify environments are auto-discovered (not manually specified)
+	if cfg.SkipEnvs {
+		t.Error("Expected SkipEnvs to be false for auto-discovery")
 	}
 
-	if cfg.TargetEnv != "production" {
-		t.Errorf("Expected target env 'production', got '%s'", cfg.TargetEnv)
-	}
-
-	// Simulate migration result
+	// Simulate migration result with repo vars and env vars
 	result := &types.MigrationResult{
-		Created: 15,  // 15 environment variables created in target
+		Created: 20, // 5 repo vars + 15 environment variables created in target
 		Updated: 0,
 		Skipped: 0,
 	}
 
-	if result.Created != 15 {
-		t.Errorf("Expected 15 environment variables created, got %d", result.Created)
+	if result.Created != 20 {
+		t.Errorf("Expected 20 total variables created, got %d", result.Created)
 	}
 }
 
@@ -246,8 +245,8 @@ func TestEndToEnd_ErrorHandlingWorkflow(t *testing.T) {
 	}
 
 	// Even with errors, partial success should be tracked
-	result.Created = 5  // 5 succeeded before errors
-	result.Updated = 2  // 2 updated before errors
+	result.Created = 5 // 5 succeeded before errors
+	result.Updated = 2 // 2 updated before errors
 
 	if result.Total() != 7 {
 		t.Errorf("Expected total of 7 (partial success), got %d", result.Total())
@@ -261,13 +260,25 @@ func TestEndToEnd_ConfigDescriptions(t *testing.T) {
 		config *types.MigrationConfig
 	}{
 		{
-			name: "repo_to_repo_description",
+			name: "repo_to_repo_with_envs_description",
 			config: &types.MigrationConfig{
 				Mode:        types.ModeRepoToRepo,
 				SourceOwner: "org1",
 				SourceRepo:  "repo1",
 				TargetOwner: "org2",
 				TargetRepo:  "repo2",
+				SkipEnvs:    false,
+			},
+		},
+		{
+			name: "repo_to_repo_skip_envs_description",
+			config: &types.MigrationConfig{
+				Mode:        types.ModeRepoToRepo,
+				SourceOwner: "org1",
+				SourceRepo:  "repo1",
+				TargetOwner: "org2",
+				TargetRepo:  "repo2",
+				SkipEnvs:    true,
 			},
 		},
 		{
@@ -276,16 +287,6 @@ func TestEndToEnd_ConfigDescriptions(t *testing.T) {
 				Mode:      types.ModeOrgToOrg,
 				SourceOrg: "source-org",
 				TargetOrg: "target-org",
-			},
-		},
-		{
-			name: "env_only_description",
-			config: &types.MigrationConfig{
-				Mode:        types.ModeEnvOnly,
-				SourceOwner: "owner",
-				SourceRepo:  "repo",
-				SourceEnv:   "staging",
-				TargetEnv:   "production",
 			},
 		},
 	}
@@ -304,12 +305,11 @@ func TestEndToEnd_ConfigDescriptions(t *testing.T) {
 	}
 }
 
-// TestEndToEnd_MigrationModes tests all three migration modes
+// TestEndToEnd_MigrationModes tests all migration modes
 func TestEndToEnd_MigrationModes(t *testing.T) {
 	modes := []types.MigrationMode{
 		types.ModeRepoToRepo,
 		types.ModeOrgToOrg,
-		types.ModeEnvOnly,
 	}
 
 	for _, mode := range modes {
@@ -330,14 +330,6 @@ func TestEndToEnd_MigrationModes(t *testing.T) {
 					Mode:      mode,
 					SourceOrg: "src-org",
 					TargetOrg: "tgt-org",
-				}
-			case types.ModeEnvOnly:
-				cfg = &types.MigrationConfig{
-					Mode:        mode,
-					SourceOwner: "owner",
-					SourceRepo:  "repo",
-					SourceEnv:   "staging",
-					TargetEnv:   "prod",
 				}
 			}
 

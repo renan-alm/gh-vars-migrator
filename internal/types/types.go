@@ -4,15 +4,13 @@ import "errors"
 
 // Error definitions for migration operations
 var (
-	ErrInvalidConfig        = errors.New("invalid configuration")
-	ErrMissingSourceOwner   = errors.New("missing source owner")
-	ErrMissingTargetOwner   = errors.New("missing target owner")
-	ErrMissingSourceRepo    = errors.New("missing source repository")
-	ErrMissingTargetRepo    = errors.New("missing target repository")
-	ErrMissingSourceOrg     = errors.New("missing source organization")
-	ErrMissingTargetOrg     = errors.New("missing target organization")
-	ErrMissingSourceEnv     = errors.New("missing source environment")
-	ErrMissingTargetEnv     = errors.New("missing target environment")
+	ErrInvalidConfig      = errors.New("invalid configuration")
+	ErrMissingSourceOwner = errors.New("missing source owner")
+	ErrMissingTargetOwner = errors.New("missing target owner")
+	ErrMissingSourceRepo  = errors.New("missing source repository")
+	ErrMissingTargetRepo  = errors.New("missing target repository")
+	ErrMissingSourceOrg   = errors.New("missing source organization")
+	ErrMissingTargetOrg   = errors.New("missing target organization")
 )
 
 // Variable represents a GitHub Actions variable
@@ -22,13 +20,20 @@ type Variable struct {
 	UpdatedAt string `json:"updated_at,omitempty"`
 }
 
+// Environment represents a GitHub repository environment
+type Environment struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	CreatedAt string `json:"created_at,omitempty"`
+	UpdatedAt string `json:"updated_at,omitempty"`
+}
+
 // MigrationMode defines the type of migration to perform
 type MigrationMode string
 
 const (
 	ModeRepoToRepo MigrationMode = "repo-to-repo"
 	ModeOrgToOrg   MigrationMode = "org-to-org"
-	ModeEnvOnly    MigrationMode = "env-only"
 )
 
 // MigrationConfig holds the configuration for a migration
@@ -46,9 +51,7 @@ type MigrationConfig struct {
 	TargetOrg   string
 
 	// Environment variables settings
-	SourceEnv string
-	TargetEnv string
-	SkipEnvs  bool
+	SkipEnvs bool
 
 	// Options
 	DryRun bool

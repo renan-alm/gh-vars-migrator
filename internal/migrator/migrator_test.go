@@ -38,22 +38,15 @@ func TestMigrator_InvalidConfig(t *testing.T) {
 		nil,
 		{
 			Mode:        types.ModeRepoToRepo,
-			SourceOwner: "",  // missing
+			SourceOwner: "", // missing
 			SourceRepo:  "repo",
 			TargetOwner: "target",
 			TargetRepo:  "repo",
 		},
 		{
-			Mode:       types.ModeOrgToOrg,
-			SourceOrg:  "", // missing
-			TargetOrg:  "target",
-		},
-		{
-			Mode:        types.ModeEnvOnly,
-			SourceOwner: "owner",
-			SourceRepo:  "repo",
-			SourceEnv:   "", // missing
-			TargetEnv:   "prod",
+			Mode:      types.ModeOrgToOrg,
+			SourceOrg: "", // missing
+			TargetOrg: "target",
 		},
 	}
 
@@ -62,9 +55,9 @@ func TestMigrator_InvalidConfig(t *testing.T) {
 			// Note: We can't actually create a migrator without credentials,
 			// but we can verify these configs would fail validation
 			if cfg == nil {
-				return  // nil config is obviously invalid
+				return // nil config is obviously invalid
 			}
-			
+
 			// Basic validation logic check
 			switch cfg.Mode {
 			case types.ModeRepoToRepo:
@@ -75,12 +68,8 @@ func TestMigrator_InvalidConfig(t *testing.T) {
 				if cfg.SourceOrg == "" || cfg.TargetOrg == "" {
 					return // Expected to be invalid
 				}
-			case types.ModeEnvOnly:
-				if cfg.SourceEnv == "" || cfg.TargetEnv == "" {
-					return // Expected to be invalid
-				}
 			}
-			
+
 			t.Error("Config should have been invalid but wasn't detected")
 		})
 	}
@@ -103,15 +92,15 @@ func TestMigrationMode_RepoToRepo(t *testing.T) {
 	if cfg.Mode != types.ModeRepoToRepo {
 		t.Errorf("Expected mode %s, got %s", types.ModeRepoToRepo, cfg.Mode)
 	}
-	
+
 	if !cfg.DryRun {
 		t.Error("Expected DryRun to be true")
 	}
-	
+
 	if cfg.Force {
 		t.Error("Expected Force to be false")
 	}
-	
+
 	if !cfg.SkipEnvs {
 		t.Error("Expected SkipEnvs to be true")
 	}
@@ -130,33 +119,13 @@ func TestMigrationMode_OrgToOrg(t *testing.T) {
 	if cfg.Mode != types.ModeOrgToOrg {
 		t.Errorf("Expected mode %s, got %s", types.ModeOrgToOrg, cfg.Mode)
 	}
-	
+
 	if cfg.DryRun {
 		t.Error("Expected DryRun to be false")
 	}
-	
+
 	if !cfg.Force {
 		t.Error("Expected Force to be true")
-	}
-}
-
-// TestMigrationMode_EnvOnly verifies env-only mode logic
-func TestMigrationMode_EnvOnly(t *testing.T) {
-	cfg := &types.MigrationConfig{
-		Mode:        types.ModeEnvOnly,
-		SourceOwner: "owner",
-		SourceRepo:  "repo",
-		SourceEnv:   "staging",
-		TargetEnv:   "production",
-		DryRun:      true,
-	}
-
-	if cfg.Mode != types.ModeEnvOnly {
-		t.Errorf("Expected mode %s, got %s", types.ModeEnvOnly, cfg.Mode)
-	}
-	
-	if cfg.SourceEnv == "" || cfg.TargetEnv == "" {
-		t.Error("Expected source and target environments to be set")
 	}
 }
 
@@ -201,7 +170,7 @@ func TestDryRunBehavior(t *testing.T) {
 
 	// Simulate tracking variables that would be created in dry-run
 	result := &types.MigrationResult{
-		Created: 10,  // Would create 10 vars
+		Created: 10, // Would create 10 vars
 		Updated: 0,
 		Skipped: 0,
 	}
@@ -230,7 +199,7 @@ func TestForceUpdateBehavior(t *testing.T) {
 	// When Force is true, existing variables should be updated
 	// When Force is false, existing variables should be skipped
 	result := &types.MigrationResult{
-		Updated: 5,   // 5 vars updated because force=true
+		Updated: 5, // 5 vars updated because force=true
 		Skipped: 0,
 	}
 
@@ -256,8 +225,6 @@ func TestSkipEnvsBehavior(t *testing.T) {
 		SourceRepo:  "repo",
 		TargetOwner: "target",
 		TargetRepo:  "repo",
-		SourceEnv:   "staging",
-		TargetEnv:   "production",
 		SkipEnvs:    false,
 	}
 
@@ -270,10 +237,7 @@ func TestSkipEnvsBehavior(t *testing.T) {
 	}
 
 	// When SkipEnvs is true, environment variables should not be migrated
-	// When SkipEnvs is false and envs are specified, they should be migrated
-	if cfgWithoutSkip.SourceEnv == "" || cfgWithoutSkip.TargetEnv == "" {
-		t.Error("Expected environments to be specified when SkipEnvs is false")
-	}
+	// When SkipEnvs is false, environments are auto-discovered and migrated
 }
 
 // TestErrorAccumulation verifies that errors are properly tracked
@@ -298,4 +262,3 @@ func TestErrorAccumulation(t *testing.T) {
 		t.Error("Expected result to have errors")
 	}
 }
-

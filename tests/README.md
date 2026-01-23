@@ -14,7 +14,7 @@ Unit tests are located alongside the source code in each package:
   - Tests validate the logic without requiring actual GitHub credentials
   
 - **`internal/config/config_test.go`**: Tests for configuration validation
-  - Validation for all migration modes (repo-to-repo, org-to-org, env-only)
+  - Validation for all migration modes (repo-to-repo, org-to-org)
   - Description generation for different configurations
   - Edge cases and error scenarios
   - Coverage: 80.0%
@@ -27,7 +27,7 @@ Unit tests are located alongside the source code in each package:
 
 - **`internal/migrator/migrator_test.go`**: Tests for migration logic
   - Configuration validation
-  - Migration mode behaviors (repo-to-repo, org-to-org, env-only)
+  - Migration mode behaviors (repo-to-repo with auto-discovery, org-to-org)
   - Dry-run and force update scenarios
   - Error handling and accumulation
   - Tests validate logic paths without requiring actual API calls
@@ -45,7 +45,7 @@ Integration tests are located in `tests/integration/`:
   - Configuration validation workflows
   - Migration result tracking across full workflows
   - Dry-run and force update workflows
-  - Environment migration scenarios
+  - Environment auto-discovery scenarios
   - Error handling across the entire migration pipeline
   - Configuration descriptions for all modes
 

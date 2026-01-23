@@ -18,12 +18,10 @@ var (
 	// Source flags
 	sourceOrg  string
 	sourceRepo string
-	sourceEnv  string
 
 	// Target flags
 	targetOrg  string
 	targetRepo string
-	targetEnv  string
 
 	// Mode flags
 	orgToOrg bool
@@ -43,23 +41,21 @@ GitHub Actions variables between organizations, repositories, and environments.
 
 It supports:
   • Organization to organization variable migration
-  • Repository to repository variable migration
-  • Environment to environment variable migration
+  • Repository to repository variable migration (with auto-discovery of environments)
   • Dry-run mode to preview changes before applying
   • Force mode to overwrite existing variables
 
 Mode Detection:
   - If --org-to-org flag is set → Organization migration mode
-  - If --source-env and --target-env are provided → Environment-only migration mode
-  - Otherwise → Repository-to-Repository migration mode`,
+  - Otherwise → Repository-to-Repository migration mode (includes all environments)`,
 	Example: `  # Organization to Organization migration
   gh vars-migrator --source-org myorg --target-org targetorg --org-to-org
 
-  # Repository to Repository migration
+  # Repository to Repository migration (auto-discovers and migrates all environments)
   gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo
 
-  # Environment to Environment migration
-  gh vars-migrator --source-org myorg --source-repo myrepo --source-env staging --target-env production
+  # Repository migration without environments
+  gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --skip-envs
 
   # Dry-run mode (preview changes)
   gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --dry-run
@@ -86,13 +82,11 @@ func Execute() {
 func init() {
 	// Source flags
 	rootCmd.Flags().StringVar(&sourceOrg, "source-org", "", "Source organization name (required)")
-	rootCmd.Flags().StringVar(&sourceRepo, "source-repo", "", "Source repository name (required for repo-to-repo and env migrations)")
-	rootCmd.Flags().StringVar(&sourceEnv, "source-env", "", "Source environment name (for environment migrations)")
+	rootCmd.Flags().StringVar(&sourceRepo, "source-repo", "", "Source repository name (required for repo-to-repo)")
 
 	// Target flags
 	rootCmd.Flags().StringVar(&targetOrg, "target-org", "", "Target organization name (required)")
-	rootCmd.Flags().StringVar(&targetRepo, "target-repo", "", "Target repository name (required for repo-to-repo, optional for org-to-org)")
-	rootCmd.Flags().StringVar(&targetEnv, "target-env", "", "Target environment name (for environment migrations)")
+	rootCmd.Flags().StringVar(&targetRepo, "target-repo", "", "Target repository name (required for repo-to-repo)")
 
 	// Mode flags
 	rootCmd.Flags().BoolVar(&orgToOrg, "org-to-org", false, "Migrate organization variables only")
@@ -130,11 +124,6 @@ func validateFlags(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("--target-org flag is required")
 	}
 
-	// Check for conflicting flags
-	if orgToOrg && (sourceEnv != "" || targetEnv != "") {
-		return fmt.Errorf("cannot use --org-to-org with environment flags (--source-env, --target-env)")
-	}
-
 	// Detect mode and validate accordingly
 	mode := detectMigrationMode()
 
@@ -144,19 +133,6 @@ func validateFlags(cmd *cobra.Command, args []string) error {
 		if sourceOrg == targetOrg {
 			return fmt.Errorf("source and target organizations cannot be the same")
 		}
-
-	case types.ModeEnvOnly:
-		// Environment-only: requires source repo, source env, and target env
-		if sourceRepo == "" {
-			return fmt.Errorf("--source-repo is required for environment migration")
-		}
-		if sourceEnv == "" {
-			return fmt.Errorf("--source-env is required for environment migration")
-		}
-		if targetEnv == "" {
-			return fmt.Errorf("--target-env is required for environment migration")
-		}
-		// Target repo defaults to source repo if not specified
 
 	case types.ModeRepoToRepo:
 		// Repo-to-repo: requires source repo and target repo
@@ -179,11 +155,6 @@ func detectMigrationMode() types.MigrationMode {
 	// If --org-to-org flag is set, it's organization migration
 	if orgToOrg {
 		return types.ModeOrgToOrg
-	}
-
-	// If both source-env and target-env are provided, it's environment-only migration
-	if sourceEnv != "" && targetEnv != "" {
-		return types.ModeEnvOnly
 	}
 
 	// Default to repository-to-repository migration
@@ -217,36 +188,12 @@ func runMigration(cmd *cobra.Command, args []string) error {
 		logger.Info("Source: %s", sourceOrg)
 		logger.Info("Target: %s", targetOrg)
 
-	case types.ModeEnvOnly:
-		cfg.SourceOwner = sourceOrg
-		cfg.SourceRepo = sourceRepo
-		cfg.SourceEnv = sourceEnv
-		cfg.TargetOwner = targetOrg
-		if targetRepo != "" {
-			cfg.TargetRepo = targetRepo
-		} else {
-			cfg.TargetRepo = sourceRepo // Default to source repo
-		}
-		cfg.TargetEnv = targetEnv
-
-		logger.Info("gh-vars-migrator - Environment Variable Migration")
-		logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		logger.Info("Source: %s/%s (env: %s)", cfg.SourceOwner, cfg.SourceRepo, cfg.SourceEnv)
-		logger.Info("Target: %s/%s (env: %s)", cfg.TargetOwner, cfg.TargetRepo, cfg.TargetEnv)
-
 	case types.ModeRepoToRepo:
 		cfg.SourceOwner = sourceOrg
 		cfg.SourceRepo = sourceRepo
 		cfg.TargetOwner = targetOrg
 		cfg.TargetRepo = targetRepo
 		cfg.SkipEnvs = skipEnvs
-		// Set environment variables if provided (for optional env migration)
-		if sourceEnv != "" {
-			cfg.SourceEnv = sourceEnv
-		}
-		if targetEnv != "" {
-			cfg.TargetEnv = targetEnv
-		}
 
 		logger.Info("gh-vars-migrator - Repository Variable Migration")
 		logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -254,6 +201,8 @@ func runMigration(cmd *cobra.Command, args []string) error {
 		logger.Info("Target: %s/%s", cfg.TargetOwner, cfg.TargetRepo)
 		if skipEnvs {
 			logger.Info("Skip Environments: true")
+		} else {
+			logger.Info("Environments: auto-discover and migrate")
 		}
 	}
 

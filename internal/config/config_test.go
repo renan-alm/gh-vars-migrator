@@ -105,45 +105,6 @@ func TestValidate_OrgToOrg(t *testing.T) {
 	}
 }
 
-func TestValidate_EnvOnly(t *testing.T) {
-	tests := []struct {
-		name    string
-		cfg     *types.MigrationConfig
-		wantErr bool
-	}{
-		{
-			name: "valid config",
-			cfg: &types.MigrationConfig{
-				Mode:        types.ModeEnvOnly,
-				SourceOwner: "owner",
-				SourceRepo:  "repo",
-				SourceEnv:   "staging",
-				TargetEnv:   "production",
-			},
-			wantErr: false,
-		},
-		{
-			name: "missing source env",
-			cfg: &types.MigrationConfig{
-				Mode:        types.ModeEnvOnly,
-				SourceOwner: "owner",
-				SourceRepo:  "repo",
-				TargetEnv:   "production",
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := Validate(tt.cfg)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestGetDescription(t *testing.T) {
 	tests := []struct {
 		name string
@@ -151,13 +112,26 @@ func TestGetDescription(t *testing.T) {
 		want string
 	}{
 		{
-			name: "repo to repo",
+			name: "repo to repo with envs",
 			cfg: &types.MigrationConfig{
 				Mode:        types.ModeRepoToRepo,
 				SourceOwner: "org1",
 				SourceRepo:  "repo1",
 				TargetOwner: "org2",
 				TargetRepo:  "repo2",
+				SkipEnvs:    false,
+			},
+			want: "Repository org1/repo1 → org2/repo2 (with environments)",
+		},
+		{
+			name: "repo to repo skip envs",
+			cfg: &types.MigrationConfig{
+				Mode:        types.ModeRepoToRepo,
+				SourceOwner: "org1",
+				SourceRepo:  "repo1",
+				TargetOwner: "org2",
+				TargetRepo:  "repo2",
+				SkipEnvs:    true,
 			},
 			want: "Repository org1/repo1 → org2/repo2",
 		},
@@ -169,17 +143,6 @@ func TestGetDescription(t *testing.T) {
 				TargetOrg: "org2",
 			},
 			want: "Organization org1 → org2",
-		},
-		{
-			name: "env only",
-			cfg: &types.MigrationConfig{
-				Mode:        types.ModeEnvOnly,
-				SourceOwner: "owner",
-				SourceRepo:  "repo",
-				SourceEnv:   "staging",
-				TargetEnv:   "production",
-			},
-			want: "Environment staging → production (Repository: owner/repo)",
 		},
 	}
 

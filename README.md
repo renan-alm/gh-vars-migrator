@@ -37,13 +37,12 @@ go install github.com/renan-alm/gh-vars-migrator@latest
 
 ## Usage
 
-The `gh-vars-migrator` extension supports three migration modes directly through command-line flags:
+The `gh-vars-migrator` extension supports two migration modes directly through command-line flags:
 
 ### Migration Modes
 
 1. **Organization to Organization**: Migrate organization-level variables
-2. **Repository to Repository**: Migrate repository-level variables and optionally environment variables
-3. **Environment to Environment**: Migrate environment variables within same or different repositories
+2. **Repository to Repository**: Migrate repository-level variables with automatic environment discovery and migration
 
 ### Basic Commands
 
@@ -64,41 +63,27 @@ gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --force
 
 #### Repository to Repository Migration
 
-Migrate repository-level variables from one repository to another:
+Migrate repository-level variables from one repository to another. The tool automatically discovers all environments in the source repository, creates them in the target if they don't exist, and migrates all environment variables:
 
 ```bash
-# Basic repo migration
+# Basic repo migration (auto-discovers and migrates all environments)
 gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo
 
-# Migrate with environment variables included
-gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --source-env production --target-env production
+# Dry-run to preview what would be migrated
+gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --dry-run
 
-# Skip environment variable migration
+# Skip environment variable migration (repo-level variables only)
 gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --skip-envs
-```
-
-#### Environment to Environment Migration
-
-Migrate environment variables between environments:
-
-```bash
-# Migrate between environments in the same repository
-gh vars-migrator --source-org myorg --source-repo myrepo --source-env staging --target-env production
-
-# Migrate between environments in different repositories
-gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --source-env staging --target-env production
 ```
 
 ### Command Options
 
 - `--source-org` (required): Source organization name
-- `--source-repo`: Source repository name (required for repo-to-repo and env migrations)
+- `--source-repo`: Source repository name (required for repo-to-repo)
 - `--target-org` (required): Target organization name
 - `--target-repo`: Target repository name (required for repo-to-repo)
-- `--source-env`: Source environment name (for environment migrations)
-- `--target-env`: Target environment name (for environment migrations)
 - `--org-to-org`: Flag to enable organization-level migration mode
-- `--skip-envs`: Skip environment variable migration during repo-to-repo
+- `--skip-envs`: Skip environment variable migration during repo-to-repo (environments are auto-discovered by default)
 - `--dry-run`: Preview changes without applying them
 - `--force`: Overwrite existing variables in the target
 
@@ -113,8 +98,7 @@ These options work with all commands:
 The migration mode is automatically detected based on the flags provided:
 
 - If `--org-to-org` flag is set → **Organization migration mode**
-- If `--source-env` and `--target-env` are provided → **Environment-only migration mode**
-- Otherwise → **Repository-to-Repository migration mode**
+- Otherwise → **Repository-to-Repository migration mode** (includes automatic environment discovery and migration)
 
 ### Additional Commands
 

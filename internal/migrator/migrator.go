@@ -50,8 +50,6 @@ func (m *Migrator) Run() (*types.MigrationResult, error) {
 		result, err = m.migrateRepoToRepo()
 	case types.ModeOrgToOrg:
 		result, err = m.migrateOrgToOrg()
-	case types.ModeEnvOnly:
-		result, err = m.migrateEnvOnly()
 	default:
 		return nil, fmt.Errorf("unsupported migration mode: %s", m.config.Mode)
 	}
