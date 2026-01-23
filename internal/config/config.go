@@ -67,6 +67,7 @@ func validateEnvOnly(cfg *types.MigrationConfig) error {
 	if cfg.TargetEnv == "" {
 		return errors.New("target environment is required")
 	}
+	// Note: TargetOwner and TargetRepo default to Source if not provided
 	return nil
 }
 
