@@ -31,42 +31,22 @@ var (
 )
 
 // migrateCmd represents the unified migrate command
+// Deprecated: Use root command flags directly
 var migrateCmd = &cobra.Command{
-	Use:   "migrate",
-	Short: "Migrate GitHub Actions variables between organizations, repositories, or environments",
-	Long: `Migrate GitHub Actions variables with support for multiple migration modes:
+	Use:        "migrate",
+	Short:      "Migrate GitHub Actions variables (deprecated: use flags on root command)",
+	Deprecated: "use flags directly on the root command instead (e.g., 'gh vars-migrator --source-org ... --target-org ...')",
+	Long: `Migrate GitHub Actions variables with support for multiple migration modes.
 
-• Organization to Organization: Migrate org-level variables (--org-to-org flag)
-• Repository to Repository: Migrate repo-level variables and optionally environment variables
-• Environment to Environment: Migrate environment variables within same or different repos
+DEPRECATED: This subcommand is deprecated. Please use flags directly on the root command instead:
+  gh vars-migrator --source-org SOURCE --target-org TARGET --org-to-org
 
-Mode Detection:
-  - If --org-to-org flag is set → Organization migration mode
-  - If --source-env and --target-env are provided → Environment-only migration mode
-  - Otherwise → Repository-to-Repository migration mode
-
-Use --dry-run to preview changes without applying them.
-Use --force to overwrite existing variables in the target.`,
-	Example: `  # Organization to Organization migration
+The migration functionality has been moved to the root command for a simpler interface.`,
+	Example: `  # DEPRECATED - Old way with subcommand
   gh vars-migrator migrate --source-org myorg --target-org targetorg --org-to-org
 
-  # Repository to Repository migration
-  gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo
-
-  # Repository to Repository with environment variables
-  gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --source-env production --target-env production
-
-  # Skip environment migration
-  gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --skip-envs
-
-  # Environment only migration (same repo, different environments)
-  gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org myorg --source-env staging --target-env production
-
-  # Dry run mode
-  gh vars-migrator migrate --source-org myorg --target-org targetorg --org-to-org --dry-run
-
-  # Force overwrite
-  gh vars-migrator migrate --source-org myorg --target-org targetorg --org-to-org --force`,
+  # RECOMMENDED - New way without subcommand
+  gh vars-migrator --source-org myorg --target-org targetorg --org-to-org`,
 	PreRunE: validateMigrateFlags,
 	RunE:    runMigrate,
 }
@@ -109,7 +89,7 @@ func validateMigrateFlags(cmd *cobra.Command, args []string) error {
 	}
 
 	// Detect mode and validate accordingly
-	mode := detectMigrationMode()
+	mode := detectMigrateCmdMode()
 
 	switch mode {
 	case types.ModeOrgToOrg:
@@ -148,7 +128,8 @@ func validateMigrateFlags(cmd *cobra.Command, args []string) error {
 }
 
 // detectMigrationMode determines the migration mode based on the provided flags
-func detectMigrationMode() types.MigrationMode {
+// detectMigrateCmdMode determines the migration mode for the deprecated migrate subcommand
+func detectMigrateCmdMode() types.MigrationMode {
 	// If --org-to-org flag is set, it's organization migration
 	if migrateOrgToOrg {
 		return types.ModeOrgToOrg
@@ -171,7 +152,7 @@ func runMigrate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Detect migration mode
-	mode := detectMigrationMode()
+	mode := detectMigrateCmdMode()
 
 	// Build migration configuration
 	cfg := &types.MigrationConfig{

@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/renan-alm/gh-vars-migrator/internal/logger"
 	"github.com/renan-alm/gh-vars-migrator/internal/migrator"
 	"github.com/renan-alm/gh-vars-migrator/internal/types"
@@ -12,23 +10,23 @@ import (
 )
 
 var (
-	sourceOrg string
-	targetOrg string
-	dryRun    bool
-	force     bool
+	orgSourceOrg string
+	orgTargetOrg string
+	orgDryRun    bool
+	orgForce     bool
 )
 
 // orgCmd represents the org command for org-to-org migration
-// Deprecated: Use 'migrate --org-to-org' instead
+// Deprecated: Use root command flags with --org-to-org instead
 var orgCmd = &cobra.Command{
 	Use:        "org",
-	Short:      "Migrate variables from one organization to another (deprecated: use 'migrate --org-to-org')",
-	Deprecated: "use 'migrate --org-to-org' instead",
+	Short:      "Migrate variables from one organization to another (deprecated: use root command flags)",
+	Deprecated: "use root command flags directly instead (e.g., 'gh vars-migrator --source-org ... --target-org ... --org-to-org')",
 	Long: `Migrate all GitHub Actions variables from a source organization 
 to a target organization.
 
-DEPRECATED: This command is deprecated. Please use the 'migrate' command with --org-to-org flag instead:
-  gh vars-migrator migrate --source-org SOURCE --target-org TARGET --org-to-org
+DEPRECATED: This command is deprecated. Please use the root command flags directly:
+  gh vars-migrator --source-org SOURCE --target-org TARGET --org-to-org
 
 This command will:
   1. Fetch all variables from the source organization
@@ -37,27 +35,21 @@ This command will:
 
 Use --dry-run to preview changes without applying them.
 Use --force to overwrite existing variables in the target organization.`,
-	Example: `  # Preview migration (dry-run)
-  gh vars-migrator org --source renan-org --target demo-org-renan --dry-run
-
-  # Perform migration
+	Example: `  # OLD - Deprecated
   gh vars-migrator org --source renan-org --target demo-org-renan
 
-  # Force overwrite existing variables
-  gh vars-migrator org --source renan-org --target demo-org-renan --force
-
-  # RECOMMENDED: Use the new migrate command instead
-  gh vars-migrator migrate --source-org renan-org --target-org demo-org-renan --org-to-org`,
+  # NEW - Recommended
+  gh vars-migrator --source-org renan-org --target-org demo-org-renan --org-to-org`,
 	RunE: runOrgMigration,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		// Validate required flags
-		if sourceOrg == "" {
+		if orgSourceOrg == "" {
 			return fmt.Errorf("--source flag is required")
 		}
-		if targetOrg == "" {
+		if orgTargetOrg == "" {
 			return fmt.Errorf("--target flag is required")
 		}
-		if sourceOrg == targetOrg {
+		if orgSourceOrg == orgTargetOrg {
 			return fmt.Errorf("source and target organizations cannot be the same")
 		}
 		return nil
@@ -68,12 +60,12 @@ func init() {
 	rootCmd.AddCommand(orgCmd)
 
 	// Required flags
-	orgCmd.Flags().StringVarP(&sourceOrg, "source", "s", "", "Source organization name (required)")
-	orgCmd.Flags().StringVarP(&targetOrg, "target", "t", "", "Target organization name (required)")
+	orgCmd.Flags().StringVarP(&orgSourceOrg, "source", "s", "", "Source organization name (required)")
+	orgCmd.Flags().StringVarP(&orgTargetOrg, "target", "t", "", "Target organization name (required)")
 
 	// Optional flags
-	orgCmd.Flags().BoolVarP(&dryRun, "dry-run", "d", false, "Preview changes without applying them")
-	orgCmd.Flags().BoolVarP(&force, "force", "f", false, "Overwrite existing variables in target")
+	orgCmd.Flags().BoolVarP(&orgDryRun, "dry-run", "d", false, "Preview changes without applying them")
+	orgCmd.Flags().BoolVarP(&orgForce, "force", "f", false, "Overwrite existing variables in target")
 
 	// Mark required flags
 	_ = orgCmd.MarkFlagRequired("source")
@@ -88,19 +80,19 @@ func runOrgMigration(cmd *cobra.Command, args []string) error {
 
 	logger.Info("gh-vars-migrator - Organization Variable Migration")
 	logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	logger.Info("Source: %s", sourceOrg)
-	logger.Info("Target: %s", targetOrg)
-	logger.Info("Dry-run: %v", dryRun)
-	logger.Info("Force: %v", force)
+	logger.Info("Source: %s", orgSourceOrg)
+	logger.Info("Target: %s", orgTargetOrg)
+	logger.Info("Dry-run: %v", orgDryRun)
+	logger.Info("Force: %v", orgForce)
 	logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	// Create migration configuration
 	cfg := &types.MigrationConfig{
 		Mode:      types.ModeOrgToOrg,
-		SourceOrg: sourceOrg,
-		TargetOrg: targetOrg,
-		DryRun:    dryRun,
-		Force:     force,
+		SourceOrg: orgSourceOrg,
+		TargetOrg: orgTargetOrg,
+		DryRun:    orgDryRun,
+		Force:     orgForce,
 	}
 
 	// Create and run migrator
@@ -120,92 +112,4 @@ func runOrgMigration(cmd *cobra.Command, args []string) error {
 
 	logger.Success("Migration completed successfully!")
 	return nil
-}
-
-// checkAuth verifies that the user is authenticated with GitHub CLI
-func checkAuth() error {
-	client, err := api.DefaultRESTClient()
-	if err != nil {
-		return fmt.Errorf("failed to create GitHub API client: %w\n\nPlease authenticate using: gh auth login", err)
-	}
-
-	var user struct {
-		Login string `json:"login"`
-	}
-
-	if err := client.Get("user", &user); err != nil {
-		return fmt.Errorf("authentication failed: %w\n\nPlease authenticate using: gh auth login", err)
-	}
-
-	logger.Success("Authenticated as: %s", user.Login)
-	return nil
-}
-
-// CheckOrgAccess verifies the user has access to the specified organization
-func CheckOrgAccess(orgName string) error {
-	client, err := api.DefaultRESTClient()
-	if err != nil {
-		return err
-	}
-
-	var org struct {
-		Login string `json:"login"`
-	}
-
-	path := fmt.Sprintf("orgs/%s", orgName)
-	if err := client.Get(path, &org); err != nil {
-		return fmt.Errorf("cannot access organization '%s': %w", orgName, err)
-	}
-
-	return nil
-}
-
-// For testing purposes, allow checking org access before migration
-func validateOrgAccess() error {
-	logger.Info("Validating organization access...")
-
-	if err := CheckOrgAccess(sourceOrg); err != nil {
-		return fmt.Errorf("source organization error: %w", err)
-	}
-	logger.Success("✓ Source organization '%s' accessible", sourceOrg)
-
-	if err := CheckOrgAccess(targetOrg); err != nil {
-		return fmt.Errorf("target organization error: %w", err)
-	}
-	logger.Success("✓ Target organization '%s' accessible", targetOrg)
-
-	return nil
-}
-
-func init() {
-	// Set up pre-run validation
-	orgCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		// Validate required flags
-		if sourceOrg == "" {
-			return fmt.Errorf("--source flag is required")
-		}
-		if targetOrg == "" {
-			return fmt.Errorf("--target flag is required")
-		}
-		if sourceOrg == targetOrg {
-			return fmt.Errorf("source and target organizations cannot be the same")
-		}
-
-		// Suppress usage on runtime errors
-		cmd.SilenceUsage = true
-		return nil
-	}
-}
-
-// Ensure proper exit code on errors
-func init() {
-	orgCmd.PostRunE = func(cmd *cobra.Command, args []string) error {
-		return nil
-	}
-}
-
-// Helper function for graceful shutdown
-func exitWithError(err error) {
-	logger.Error("%v", err)
-	os.Exit(1)
 }

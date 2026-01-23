@@ -37,7 +37,7 @@ go install github.com/renan-alm/gh-vars-migrator@latest
 
 ## Usage
 
-The `gh-vars-migrator` extension provides a unified `migrate` command that supports three migration modes:
+The `gh-vars-migrator` extension supports three migration modes directly through command-line flags:
 
 ### Migration Modes
 
@@ -53,13 +53,13 @@ Migrate all organization-level variables from one organization to another:
 
 ```bash
 # Basic migration
-gh vars-migrator migrate --source-org myorg --target-org targetorg --org-to-org
+gh vars-migrator --source-org myorg --target-org targetorg --org-to-org
 
 # Dry-run mode (preview changes)
-gh vars-migrator migrate --source-org myorg --target-org targetorg --org-to-org --dry-run
+gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --dry-run
 
 # Force overwrite existing variables
-gh vars-migrator migrate --source-org myorg --target-org targetorg --org-to-org --force
+gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --force
 ```
 
 #### Repository to Repository Migration
@@ -68,13 +68,13 @@ Migrate repository-level variables from one repository to another:
 
 ```bash
 # Basic repo migration
-gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo
+gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo
 
 # Migrate with environment variables included
-gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --source-env production --target-env production
+gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --source-env production --target-env production
 
 # Skip environment variable migration
-gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --skip-envs
+gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --skip-envs
 ```
 
 #### Environment to Environment Migration
@@ -83,10 +83,10 @@ Migrate environment variables between environments:
 
 ```bash
 # Migrate between environments in the same repository
-gh vars-migrator migrate --source-org myorg --source-repo myrepo --source-env staging --target-env production
+gh vars-migrator --source-org myorg --source-repo myrepo --source-env staging --target-env production
 
 # Migrate between environments in different repositories
-gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --source-env staging --target-env production
+gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --source-env staging --target-env production
 ```
 
 ### Command Options
