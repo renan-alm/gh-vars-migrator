@@ -30,3 +30,9 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Build artifacts and binaries
+/bin/
+dist/
+*.tar.gz
+*.zip
