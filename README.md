@@ -101,7 +101,12 @@ gh vars-migrator migrate --source-org myorg --source-repo myrepo --target-org ta
 - `--skip-envs`: Skip environment variable migration during repo-to-repo
 - `--dry-run`: Preview changes without applying them
 - `--force`: Overwrite existing variables in the target
-- `--verbose`: Enable verbose output
+
+### Global Options
+
+These options work with all commands:
+
+- `--verbose`, `-v`: Enable verbose output
 
 ### Mode Detection
 
