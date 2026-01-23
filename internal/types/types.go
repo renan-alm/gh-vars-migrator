@@ -1,5 +1,20 @@
 package types
 
+import "errors"
+
+// Error definitions for migration operations
+var (
+	ErrInvalidConfig        = errors.New("invalid configuration")
+	ErrMissingSourceOwner   = errors.New("missing source owner")
+	ErrMissingTargetOwner   = errors.New("missing target owner")
+	ErrMissingSourceRepo    = errors.New("missing source repository")
+	ErrMissingTargetRepo    = errors.New("missing target repository")
+	ErrMissingSourceOrg     = errors.New("missing source organization")
+	ErrMissingTargetOrg     = errors.New("missing target organization")
+	ErrMissingSourceEnv     = errors.New("missing source environment")
+	ErrMissingTargetEnv     = errors.New("missing target environment")
+)
+
 // Variable represents a GitHub Actions variable
 type Variable struct {
 	Name      string `json:"name"`
