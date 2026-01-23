@@ -237,3 +237,45 @@ func (c *Client) UpdateEnvVariable(owner, repo, env string, variable types.Varia
 
 	return nil
 }
+
+// ListEnvironments lists all environments for a repository
+func (c *Client) ListEnvironments(owner, repo string) ([]types.Environment, error) {
+	var response struct {
+		TotalCount   int                 `json:"total_count"`
+		Environments []types.Environment `json:"environments"`
+	}
+
+	path := fmt.Sprintf("repos/%s/%s/environments", owner, repo)
+	err := c.restClient.Get(path, &response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list environments: %w", err)
+	}
+
+	return response.Environments, nil
+}
+
+// GetEnvironment gets a specific environment from a repository
+func (c *Client) GetEnvironment(owner, repo, envName string) (*types.Environment, error) {
+	var env types.Environment
+
+	path := fmt.Sprintf("repos/%s/%s/environments/%s", owner, repo, envName)
+	err := c.restClient.Get(path, &env)
+	if err != nil {
+		return nil, err
+	}
+
+	return &env, nil
+}
+
+// CreateEnvironment creates a new environment in a repository
+func (c *Client) CreateEnvironment(owner, repo, envName string) error {
+	path := fmt.Sprintf("repos/%s/%s/environments/%s", owner, repo, envName)
+
+	// GitHub API requires PUT with empty body to create an environment
+	err := c.restClient.Put(path, bytes.NewReader([]byte("{}")), nil)
+	if err != nil {
+		return fmt.Errorf("failed to create environment: %w", err)
+	}
+
+	return nil
+}

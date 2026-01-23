@@ -18,8 +18,6 @@ func Validate(cfg *types.MigrationConfig) error {
 		return validateRepoToRepo(cfg)
 	case types.ModeOrgToOrg:
 		return validateOrgToOrg(cfg)
-	case types.ModeEnvOnly:
-		return validateEnvOnly(cfg)
 	default:
 		return fmt.Errorf("invalid migration mode: %s", cfg.Mode)
 	}
@@ -53,38 +51,20 @@ func validateOrgToOrg(cfg *types.MigrationConfig) error {
 	return nil
 }
 
-// validateEnvOnly validates environment-only migration configuration
-func validateEnvOnly(cfg *types.MigrationConfig) error {
-	if cfg.SourceOwner == "" {
-		return errors.New("source owner is required")
-	}
-	if cfg.SourceRepo == "" {
-		return errors.New("source repository is required")
-	}
-	if cfg.SourceEnv == "" {
-		return errors.New("source environment is required")
-	}
-	if cfg.TargetEnv == "" {
-		return errors.New("target environment is required")
-	}
-	// Note: TargetOwner and TargetRepo default to Source if not provided
-	return nil
-}
-
 // GetDescription returns a human-readable description of the migration
 func GetDescription(cfg *types.MigrationConfig) string {
 	switch cfg.Mode {
 	case types.ModeRepoToRepo:
-		return fmt.Sprintf("Repository %s/%s → %s/%s",
+		desc := fmt.Sprintf("Repository %s/%s → %s/%s",
 			cfg.SourceOwner, cfg.SourceRepo,
 			cfg.TargetOwner, cfg.TargetRepo)
+		if !cfg.SkipEnvs {
+			desc += " (with environments)"
+		}
+		return desc
 	case types.ModeOrgToOrg:
 		return fmt.Sprintf("Organization %s → %s",
 			cfg.SourceOrg, cfg.TargetOrg)
-	case types.ModeEnvOnly:
-		return fmt.Sprintf("Environment %s → %s (Repository: %s/%s)",
-			cfg.SourceEnv, cfg.TargetEnv,
-			cfg.SourceOwner, cfg.SourceRepo)
 	default:
 		return "Unknown migration"
 	}
