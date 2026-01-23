@@ -1,0 +1,239 @@
+package client
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+
+	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/renan-alm/gh-vars-migrator/internal/types"
+)
+
+// Client is a wrapper around the GitHub API client
+type Client struct {
+	restClient *api.RESTClient
+}
+
+// New creates a new GitHub API client
+func New() (*Client, error) {
+	restClient, err := api.DefaultRESTClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GitHub API client: %w", err)
+	}
+
+	return &Client{
+		restClient: restClient,
+	}, nil
+}
+
+// ListRepoVariables lists all variables for a repository
+func (c *Client) ListRepoVariables(owner, repo string) ([]types.Variable, error) {
+	var response struct {
+		Variables []types.Variable `json:"variables"`
+	}
+
+	path := fmt.Sprintf("repos/%s/%s/actions/variables", owner, repo)
+	err := c.restClient.Get(path, &response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list repository variables: %w", err)
+	}
+
+	return response.Variables, nil
+}
+
+// ListOrgVariables lists all variables for an organization
+func (c *Client) ListOrgVariables(org string) ([]types.Variable, error) {
+	var response struct {
+		Variables []types.Variable `json:"variables"`
+	}
+
+	path := fmt.Sprintf("orgs/%s/actions/variables", org)
+	err := c.restClient.Get(path, &response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list organization variables: %w", err)
+	}
+
+	return response.Variables, nil
+}
+
+// ListEnvVariables lists all variables for a repository environment
+func (c *Client) ListEnvVariables(owner, repo, env string) ([]types.Variable, error) {
+	var response struct {
+		Variables []types.Variable `json:"variables"`
+	}
+
+	path := fmt.Sprintf("repos/%s/%s/environments/%s/variables", owner, repo, env)
+	err := c.restClient.Get(path, &response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list environment variables: %w", err)
+	}
+
+	return response.Variables, nil
+}
+
+// GetRepoVariable gets a specific variable from a repository
+func (c *Client) GetRepoVariable(owner, repo, name string) (*types.Variable, error) {
+	var variable types.Variable
+
+	path := fmt.Sprintf("repos/%s/%s/actions/variables/%s", owner, repo, name)
+	err := c.restClient.Get(path, &variable)
+	if err != nil {
+		return nil, err
+	}
+
+	return &variable, nil
+}
+
+// GetOrgVariable gets a specific variable from an organization
+func (c *Client) GetOrgVariable(org, name string) (*types.Variable, error) {
+	var variable types.Variable
+
+	path := fmt.Sprintf("orgs/%s/actions/variables/%s", org, name)
+	err := c.restClient.Get(path, &variable)
+	if err != nil {
+		return nil, err
+	}
+
+	return &variable, nil
+}
+
+// GetEnvVariable gets a specific variable from an environment
+func (c *Client) GetEnvVariable(owner, repo, env, name string) (*types.Variable, error) {
+	var variable types.Variable
+
+	path := fmt.Sprintf("repos/%s/%s/environments/%s/variables/%s", owner, repo, env, name)
+	err := c.restClient.Get(path, &variable)
+	if err != nil {
+		return nil, err
+	}
+
+	return &variable, nil
+}
+
+// CreateRepoVariable creates a new variable in a repository
+func (c *Client) CreateRepoVariable(owner, repo string, variable types.Variable) error {
+	path := fmt.Sprintf("repos/%s/%s/actions/variables", owner, repo)
+	body := map[string]string{
+		"name":  variable.Name,
+		"value": variable.Value,
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	err = c.restClient.Post(path, bytes.NewReader(bodyBytes), nil)
+	if err != nil {
+		return fmt.Errorf("failed to create repository variable: %w", err)
+	}
+
+	return nil
+}
+
+// CreateOrgVariable creates a new variable in an organization
+func (c *Client) CreateOrgVariable(org string, variable types.Variable) error {
+	path := fmt.Sprintf("orgs/%s/actions/variables", org)
+	body := map[string]string{
+		"name":       variable.Name,
+		"value":      variable.Value,
+		"visibility": "all",
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	err = c.restClient.Post(path, bytes.NewReader(bodyBytes), nil)
+	if err != nil {
+		return fmt.Errorf("failed to create organization variable: %w", err)
+	}
+
+	return nil
+}
+
+// CreateEnvVariable creates a new variable in an environment
+func (c *Client) CreateEnvVariable(owner, repo, env string, variable types.Variable) error {
+	path := fmt.Sprintf("repos/%s/%s/environments/%s/variables", owner, repo, env)
+	body := map[string]string{
+		"name":  variable.Name,
+		"value": variable.Value,
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	err = c.restClient.Post(path, bytes.NewReader(bodyBytes), nil)
+	if err != nil {
+		return fmt.Errorf("failed to create environment variable: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateRepoVariable updates an existing variable in a repository
+func (c *Client) UpdateRepoVariable(owner, repo string, variable types.Variable) error {
+	path := fmt.Sprintf("repos/%s/%s/actions/variables/%s", owner, repo, variable.Name)
+	body := map[string]string{
+		"name":  variable.Name,
+		"value": variable.Value,
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	err = c.restClient.Patch(path, bytes.NewReader(bodyBytes), nil)
+	if err != nil {
+		return fmt.Errorf("failed to update repository variable: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateOrgVariable updates an existing variable in an organization
+func (c *Client) UpdateOrgVariable(org string, variable types.Variable) error {
+	path := fmt.Sprintf("orgs/%s/actions/variables/%s", org, variable.Name)
+	body := map[string]string{
+		"name":       variable.Name,
+		"value":      variable.Value,
+		"visibility": "all",
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	err = c.restClient.Patch(path, bytes.NewReader(bodyBytes), nil)
+	if err != nil {
+		return fmt.Errorf("failed to update organization variable: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateEnvVariable updates an existing variable in an environment
+func (c *Client) UpdateEnvVariable(owner, repo, env string, variable types.Variable) error {
+	path := fmt.Sprintf("repos/%s/%s/environments/%s/variables/%s", owner, repo, env, variable.Name)
+	body := map[string]string{
+		"name":  variable.Name,
+		"value": variable.Value,
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	err = c.restClient.Patch(path, bytes.NewReader(bodyBytes), nil)
+	if err != nil {
+		return fmt.Errorf("failed to update environment variable: %w", err)
+	}
+
+	return nil
+}
