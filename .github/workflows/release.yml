@@ -140,12 +140,19 @@ jobs:
           VERSION="${{ needs.validate.outputs.version }}"
           
           # Extract changelog section for this version
-          if grep -q "## \[${VERSION}\]" CHANGELOG.md || grep -q "## ${VERSION}" CHANGELOG.md; then
-            awk "/## \[?${VERSION}\]?/,/## \[?v?[0-9]/ {if (/## \[?v?[0-9]/ && !/## \[?${VERSION}/) exit; print}" CHANGELOG.md > release_notes.md
-            # Remove the version header from the notes
-            tail -n +2 release_notes.md > release_notes_clean.md
-            mv release_notes_clean.md release_notes.md
-          else
+          # This handles both [v0.1.0] and v0.1.0 formats, with or without dates
+          # It extracts from the version header until the next version header or end of file
+          awk -v ver="$VERSION" '
+            BEGIN { found=0; printing=0 }
+            /^## \[?v?[0-9]+\.[0-9]+\.[0-9]+\]?/ {
+              if (printing) exit
+              if (index($0, ver) > 0) { found=1; printing=1; next }
+            }
+            printing { print }
+          ' CHANGELOG.md > release_notes.md
+          
+          # If no content was extracted, use a default message
+          if [ ! -s release_notes.md ]; then
             echo "Release ${VERSION}" > release_notes.md
           fi
           
