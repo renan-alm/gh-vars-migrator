@@ -246,4 +246,3 @@ func TestUpdateOrgVariable_RequestBody(t *testing.T) {
 		t.Errorf("Expected value updated_value, got %s", decoded["value"])
 	}
 }
-

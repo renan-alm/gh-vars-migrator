@@ -65,7 +65,7 @@ func TestEndToEnd_ConfigValidation(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("config.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			
+
 			if !tt.wantErr {
 				// Get description for valid configs
 				desc := config.GetDescription(tt.config)
@@ -296,7 +296,7 @@ func TestEndToEnd_ConfigDescriptions(t *testing.T) {
 			if desc == "" {
 				t.Error("Expected non-empty description")
 			}
-			
+
 			if len(desc) < 10 {
 				t.Errorf("Description seems too short: %s", desc)
 			}
