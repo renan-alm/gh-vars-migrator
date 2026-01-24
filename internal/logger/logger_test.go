@@ -19,7 +19,7 @@ func captureOutput(f func()) string {
 	os.Stdout = old
 
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	return buf.String()
 }
 
@@ -78,7 +78,7 @@ func TestError(t *testing.T) {
 	os.Stderr = old
 
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
 	if !strings.Contains(output, "error message") {
@@ -168,10 +168,10 @@ func TestPrintSummary(t *testing.T) {
 			os.Stderr = oldStderr
 
 			var bufOut bytes.Buffer
-			bufOut.ReadFrom(rOut)
+			_, _ = bufOut.ReadFrom(rOut)
 			var bufErr bytes.Buffer
-			bufErr.ReadFrom(rErr)
-			
+			_, _ = bufErr.ReadFrom(rErr)
+
 			// Combine stdout and stderr
 			output := bufOut.String() + bufErr.String()
 
