@@ -1,0 +1,62 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "go"
+    groups:
+      # Group all production dependencies together
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group all development dependencies together
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group all GitHub-related packages
+      github-packages:
+        patterns:
+          - "github.com/google/go-github/*"
+          - "golang.org/x/oauth2"
+      # Group all CLI/Cobra related packages
+      cli-packages:
+        patterns:
+          - "github.com/spf13/*"
+      # Group all testing packages
+      testing-packages:
+        patterns:
+          - "github.com/stretchr/*"
+
+  # Also keep GitHub Actions up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      # Group all GitHub Actions updates
+      actions:
+        patterns:
+          - "*"
