@@ -12,17 +12,14 @@ jobs:
   test-and-lint:
     name: Test and Lint
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: ['1.22', '1.23']
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go ${{ matrix.go-version }}
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: '1.25'
 
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -30,9 +27,9 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-1.25-${{ hashFiles('**/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-${{ matrix.go-version }}-
+            ${{ runner.os }}-go-1.25-
 
       - name: Download dependencies
         run: go mod download
@@ -44,14 +41,12 @@ jobs:
         run: go tool cover -func=coverage.out
 
       - name: Upload coverage
-        if: matrix.go-version == '1.23'
         uses: actions/upload-artifact@v4.4.3
         with:
           name: coverage-report
           path: coverage.out
 
       - name: Run golangci-lint
-        if: matrix.go-version == '1.23'
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
