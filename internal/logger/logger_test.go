@@ -15,7 +15,7 @@ func captureOutput(f func()) string {
 
 	f()
 
-	w.Close()
+	_ = w.Close()
 	os.Stdout = old
 
 	var buf bytes.Buffer
@@ -74,7 +74,7 @@ func TestError(t *testing.T) {
 
 	Error("error message")
 
-	w.Close()
+	_ = w.Close()
 	os.Stderr = old
 
 	var buf bytes.Buffer
@@ -162,8 +162,8 @@ func TestPrintSummary(t *testing.T) {
 
 			PrintSummary(tt.created, tt.updated, tt.skipped, tt.errors)
 
-			wOut.Close()
-			wErr.Close()
+			_ = wOut.Close()
+			_ = wErr.Close()
 			os.Stdout = oldStdout
 			os.Stderr = oldStderr
 

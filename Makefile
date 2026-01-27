@@ -25,7 +25,7 @@ test-coverage:
 lint:
 	@echo "Running linter..."
 	@which golangci-lint > /dev/null || (echo "golangci-lint not installed. Install it from https://golangci-lint.run/usage/install/" && exit 1)
-	@golangci-lint run
+	@golangci-lint run --timeout=5m
 
 # Install the binary
 install: build
