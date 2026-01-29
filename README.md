@@ -44,6 +44,37 @@ go install github.com/renan-alm/gh-vars-migrator@latest
 
 The `gh-vars-migrator` extension supports two migration modes directly through command-line flags:
 
+### Authentication
+
+The tool supports multiple authentication methods:
+
+1. **Explicit Tokens (Recommended for cross-account migrations)**: Use `--source-pat` and `--target-pat` flags or `SOURCE_PAT` and `TARGET_PAT` environment variables to specify separate tokens for source and target operations.
+
+2. **GITHUB_TOKEN Fallback**: If `GITHUB_TOKEN` environment variable is set, it will be used for both source and target when explicit PATs are not provided.
+
+3. **GitHub CLI Authentication**: If no tokens are provided, the tool falls back to GitHub CLI's authentication (requires `gh auth login`).
+
+#### Authentication Examples
+
+```bash
+# Using explicit PATs for different accounts
+gh vars-migrator --source-org srcorg --target-org tgtorg --org-to-org \
+  --source-pat ghp_sourcetoken123 --target-pat ghp_targettoken456
+
+# Using environment variables
+export SOURCE_PAT=ghp_sourcetoken123
+export TARGET_PAT=ghp_targettoken456
+gh vars-migrator --source-org srcorg --target-org tgtorg --org-to-org
+
+# Using GITHUB_TOKEN for both source and target
+export GITHUB_TOKEN=ghp_yourtoken
+gh vars-migrator --source-org srcorg --target-org tgtorg --org-to-org
+
+# Using GitHub CLI authentication (default)
+gh auth login
+gh vars-migrator --source-org srcorg --target-org tgtorg --org-to-org
+```
+
 ### Migration Modes
 
 1. **Organization to Organization**: Migrate organization-level variables
@@ -83,12 +114,22 @@ gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg 
 
 ### Command Options
 
+#### Source and Target
 - `--source-org` (required): Source organization name
 - `--source-repo`: Source repository name (required for repo-to-repo)
 - `--target-org` (required): Target organization name
 - `--target-repo`: Target repository name (required for repo-to-repo)
+
+#### Authentication
+- `--source-pat`: Source personal access token (env: `SOURCE_PAT`)
+- `--target-pat`: Target personal access token (env: `TARGET_PAT`)
+- If neither PAT is provided, falls back to `GITHUB_TOKEN` or GitHub CLI auth
+
+#### Mode Options
 - `--org-to-org`: Flag to enable organization-level migration mode
 - `--skip-envs`: Skip environment variable migration during repo-to-repo (environments are auto-discovered by default)
+
+#### Behavior Options
 - `--dry-run`: Preview changes without applying them
 - `--force`: Overwrite existing variables in the target
 

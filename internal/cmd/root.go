@@ -50,7 +50,13 @@ It supports:
 
 Mode Detection:
   - If --org-to-org flag is set → Organization migration mode
-  - Otherwise → Repository-to-Repository migration mode (includes all environments)`,
+  - Otherwise → Repository-to-Repository migration mode (includes all environments)
+
+Authentication:
+  - Use --source-pat and --target-pat for explicit tokens
+  - Or set SOURCE_PAT and TARGET_PAT environment variables
+  - Falls back to GITHUB_TOKEN if set
+  - Otherwise uses GitHub CLI authentication (gh auth login)`,
 	Example: `  # Organization to Organization migration
   gh vars-migrator --source-org myorg --target-org targetorg --org-to-org
 
@@ -65,6 +71,15 @@ Mode Detection:
 
   # Force overwrite existing variables
   gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --force
+
+  # Using explicit PATs for different accounts
+  gh vars-migrator --source-org myorg --target-org targetorg --org-to-org \
+    --source-pat ghp_sourcetoken --target-pat ghp_targettoken
+
+  # Using environment variables for tokens
+  export SOURCE_PAT=ghp_sourcetoken
+  export TARGET_PAT=ghp_targettoken
+  gh vars-migrator --source-org myorg --target-org targetorg --org-to-org
 
   # Utility commands
   gh vars-migrator auth
