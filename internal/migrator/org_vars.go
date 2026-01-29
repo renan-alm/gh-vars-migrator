@@ -13,8 +13,8 @@ func (m *Migrator) migrateOrgToOrg() (*types.MigrationResult, error) {
 
 	logger.Info("Fetching variables from source organization: %s", m.config.SourceOrg)
 
-	// Get source organization variables
-	sourceVars, err := m.client.ListOrgVariables(m.config.SourceOrg)
+	// Get source organization variables using source client
+	sourceVars, err := m.sourceClient.ListOrgVariables(m.config.SourceOrg)
 	if err != nil {
 		return result, fmt.Errorf("failed to list source organization variables: %w", err)
 	}
@@ -34,8 +34,8 @@ func (m *Migrator) migrateOrgToOrg() (*types.MigrationResult, error) {
 
 // migrateOrgVariable migrates a single organization variable
 func (m *Migrator) migrateOrgVariable(variable types.Variable, result *types.MigrationResult) error {
-	// Check if variable exists in target
-	existingVar, err := m.client.GetOrgVariable(m.config.TargetOrg, variable.Name)
+	// Check if variable exists in target using target client
+	existingVar, err := m.targetClient.GetOrgVariable(m.config.TargetOrg, variable.Name)
 
 	if err == nil && existingVar != nil {
 		// Variable exists in target
@@ -45,14 +45,14 @@ func (m *Migrator) migrateOrgVariable(variable types.Variable, result *types.Mig
 			return nil
 		}
 
-		// Update existing variable
+		// Update existing variable using target client
 		if m.config.DryRun {
 			logger.Info("[DRY-RUN] Would update variable: %s", variable.Name)
 			result.Updated++
 			return nil
 		}
 
-		if err := m.client.UpdateOrgVariable(m.config.TargetOrg, variable); err != nil {
+		if err := m.targetClient.UpdateOrgVariable(m.config.TargetOrg, variable); err != nil {
 			return fmt.Errorf("failed to update: %w", err)
 		}
 
@@ -61,14 +61,14 @@ func (m *Migrator) migrateOrgVariable(variable types.Variable, result *types.Mig
 		return nil
 	}
 
-	// Create new variable
+	// Create new variable using target client
 	if m.config.DryRun {
 		logger.Info("[DRY-RUN] Would create variable: %s", variable.Name)
 		result.Created++
 		return nil
 	}
 
-	if err := m.client.CreateOrgVariable(m.config.TargetOrg, variable); err != nil {
+	if err := m.targetClient.CreateOrgVariable(m.config.TargetOrg, variable); err != nil {
 		return fmt.Errorf("failed to create: %w", err)
 	}
 

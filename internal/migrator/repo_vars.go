@@ -13,8 +13,8 @@ func (m *Migrator) migrateRepoToRepo() (*types.MigrationResult, error) {
 
 	logger.Info("Fetching variables from source repository: %s/%s", m.config.SourceOwner, m.config.SourceRepo)
 
-	// Get source repository variables
-	sourceVars, err := m.client.ListRepoVariables(m.config.SourceOwner, m.config.SourceRepo)
+	// Get source repository variables using source client
+	sourceVars, err := m.sourceClient.ListRepoVariables(m.config.SourceOwner, m.config.SourceRepo)
 	if err != nil {
 		return result, fmt.Errorf("failed to list source repository variables: %w", err)
 	}
@@ -43,8 +43,8 @@ func (m *Migrator) migrateRepoToRepo() (*types.MigrationResult, error) {
 func (m *Migrator) migrateAllEnvironments(result *types.MigrationResult) error {
 	logger.Info("Discovering environments from source repository: %s/%s", m.config.SourceOwner, m.config.SourceRepo)
 
-	// List all environments from source repository
-	environments, err := m.client.ListEnvironments(m.config.SourceOwner, m.config.SourceRepo)
+	// List all environments from source repository using source client
+	environments, err := m.sourceClient.ListEnvironments(m.config.SourceOwner, m.config.SourceRepo)
 	if err != nil {
 		return fmt.Errorf("failed to list environments: %w", err)
 	}
@@ -85,8 +85,8 @@ func (m *Migrator) migrateEnvironment(envName string, result *types.MigrationRes
 		return fmt.Errorf("failed to ensure environment exists: %w", err)
 	}
 
-	// Get variables from source environment
-	sourceEnvVars, err := m.client.ListEnvVariables(m.config.SourceOwner, m.config.SourceRepo, envName)
+	// Get variables from source environment using source client
+	sourceEnvVars, err := m.sourceClient.ListEnvVariables(m.config.SourceOwner, m.config.SourceRepo, envName)
 	if err != nil {
 		return fmt.Errorf("failed to list environment variables: %w", err)
 	}
@@ -106,8 +106,8 @@ func (m *Migrator) migrateEnvironment(envName string, result *types.MigrationRes
 
 // ensureEnvironmentExists creates the environment in the target repo if it doesn't exist
 func (m *Migrator) ensureEnvironmentExists(envName string) error {
-	// Check if environment already exists in target
-	_, err := m.client.GetEnvironment(m.config.TargetOwner, m.config.TargetRepo, envName)
+	// Check if environment already exists in target using target client
+	_, err := m.targetClient.GetEnvironment(m.config.TargetOwner, m.config.TargetRepo, envName)
 	if err == nil {
 		logger.Debug("Environment '%s' already exists in target repository", envName)
 		return nil
@@ -120,7 +120,7 @@ func (m *Migrator) ensureEnvironmentExists(envName string) error {
 	}
 
 	logger.Info("Creating environment '%s' in target repository", envName)
-	if err := m.client.CreateEnvironment(m.config.TargetOwner, m.config.TargetRepo, envName); err != nil {
+	if err := m.targetClient.CreateEnvironment(m.config.TargetOwner, m.config.TargetRepo, envName); err != nil {
 		return fmt.Errorf("failed to create environment: %w", err)
 	}
 
@@ -141,8 +141,8 @@ func (m *Migrator) migrateRepoVariables(sourceVars []types.Variable, result *typ
 
 // migrateRepoVariable migrates a single repository variable
 func (m *Migrator) migrateRepoVariable(variable types.Variable, result *types.MigrationResult) error {
-	// Check if variable exists in target
-	existingVar, err := m.client.GetRepoVariable(m.config.TargetOwner, m.config.TargetRepo, variable.Name)
+	// Check if variable exists in target using target client
+	existingVar, err := m.targetClient.GetRepoVariable(m.config.TargetOwner, m.config.TargetRepo, variable.Name)
 
 	if err == nil && existingVar != nil {
 		// Variable exists in target
@@ -152,14 +152,14 @@ func (m *Migrator) migrateRepoVariable(variable types.Variable, result *types.Mi
 			return nil
 		}
 
-		// Update existing variable
+		// Update existing variable using target client
 		if m.config.DryRun {
 			logger.Info("[DRY-RUN] Would update variable: %s", variable.Name)
 			result.Updated++
 			return nil
 		}
 
-		if err := m.client.UpdateRepoVariable(m.config.TargetOwner, m.config.TargetRepo, variable); err != nil {
+		if err := m.targetClient.UpdateRepoVariable(m.config.TargetOwner, m.config.TargetRepo, variable); err != nil {
 			return fmt.Errorf("failed to update: %w", err)
 		}
 
@@ -168,14 +168,14 @@ func (m *Migrator) migrateRepoVariable(variable types.Variable, result *types.Mi
 		return nil
 	}
 
-	// Create new variable
+	// Create new variable using target client
 	if m.config.DryRun {
 		logger.Info("[DRY-RUN] Would create variable: %s", variable.Name)
 		result.Created++
 		return nil
 	}
 
-	if err := m.client.CreateRepoVariable(m.config.TargetOwner, m.config.TargetRepo, variable); err != nil {
+	if err := m.targetClient.CreateRepoVariable(m.config.TargetOwner, m.config.TargetRepo, variable); err != nil {
 		return fmt.Errorf("failed to create: %w", err)
 	}
 
@@ -186,8 +186,8 @@ func (m *Migrator) migrateRepoVariable(variable types.Variable, result *types.Mi
 
 // migrateEnvVariable migrates a single environment variable
 func (m *Migrator) migrateEnvVariable(envName string, variable types.Variable, result *types.MigrationResult) error {
-	// Check if variable exists in target environment
-	existingVar, err := m.client.GetEnvVariable(m.config.TargetOwner, m.config.TargetRepo, envName, variable.Name)
+	// Check if variable exists in target environment using target client
+	existingVar, err := m.targetClient.GetEnvVariable(m.config.TargetOwner, m.config.TargetRepo, envName, variable.Name)
 
 	if err == nil && existingVar != nil {
 		// Variable exists in target environment
@@ -197,14 +197,14 @@ func (m *Migrator) migrateEnvVariable(envName string, variable types.Variable, r
 			return nil
 		}
 
-		// Update existing variable
+		// Update existing variable using target client
 		if m.config.DryRun {
 			logger.Info("[DRY-RUN] Would update environment variable: %s (env: %s)", variable.Name, envName)
 			result.Updated++
 			return nil
 		}
 
-		if err := m.client.UpdateEnvVariable(m.config.TargetOwner, m.config.TargetRepo, envName, variable); err != nil {
+		if err := m.targetClient.UpdateEnvVariable(m.config.TargetOwner, m.config.TargetRepo, envName, variable); err != nil {
 			return fmt.Errorf("failed to update: %w", err)
 		}
 
@@ -213,14 +213,14 @@ func (m *Migrator) migrateEnvVariable(envName string, variable types.Variable, r
 		return nil
 	}
 
-	// Create new environment variable
+	// Create new environment variable using target client
 	if m.config.DryRun {
 		logger.Info("[DRY-RUN] Would create environment variable: %s (env: %s)", variable.Name, envName)
 		result.Created++
 		return nil
 	}
 
-	if err := m.client.CreateEnvVariable(m.config.TargetOwner, m.config.TargetRepo, envName, variable); err != nil {
+	if err := m.targetClient.CreateEnvVariable(m.config.TargetOwner, m.config.TargetRepo, envName, variable); err != nil {
 		return fmt.Errorf("failed to create: %w", err)
 	}
 

@@ -11,26 +11,30 @@ import (
 
 // Migrator orchestrates the migration of GitHub Actions variables
 type Migrator struct {
-	client *client.Client
-	config *types.MigrationConfig
+	sourceClient *client.Client
+	targetClient *client.Client
+	config       *types.MigrationConfig
 }
 
-// New creates a new Migrator instance
-func New(cfg *types.MigrationConfig) (*Migrator, error) {
+// New creates a new Migrator instance with separate source and target clients
+func New(cfg *types.MigrationConfig, sourceClient, targetClient *client.Client) (*Migrator, error) {
 	// Validate configuration
 	if err := config.Validate(cfg); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	// Create GitHub API client
-	c, err := client.New()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create API client: %w", err)
+	if sourceClient == nil {
+		return nil, fmt.Errorf("source client cannot be nil")
+	}
+
+	if targetClient == nil {
+		return nil, fmt.Errorf("target client cannot be nil")
 	}
 
 	return &Migrator{
-		client: c,
-		config: cfg,
+		sourceClient: sourceClient,
+		targetClient: targetClient,
+		config:       cfg,
 	}, nil
 }
 

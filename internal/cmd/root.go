@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/renan-alm/gh-vars-migrator/internal/client"
 	"github.com/renan-alm/gh-vars-migrator/internal/logger"
 	"github.com/renan-alm/gh-vars-migrator/internal/migrator"
 	"github.com/renan-alm/gh-vars-migrator/internal/types"
@@ -16,12 +17,14 @@ var (
 	Version = "dev"
 
 	// Source flags
-	sourceOrg  string
+	sourceOrg string
 	sourceRepo string
+	sourcePAT string
 
 	// Target flags
-	targetOrg  string
+	targetOrg string
 	targetRepo string
+	targetPAT string
 
 	// Mode flags
 	orgToOrg bool
@@ -83,10 +86,12 @@ func init() {
 	// Source flags
 	rootCmd.Flags().StringVar(&sourceOrg, "source-org", "", "Source organization name (required)")
 	rootCmd.Flags().StringVar(&sourceRepo, "source-repo", "", "Source repository name (required for repo-to-repo)")
+	rootCmd.Flags().StringVar(&sourcePAT, "source-pat", os.Getenv("SOURCE_PAT"), "Source personal access token (env: SOURCE_PAT)")
 
 	// Target flags
 	rootCmd.Flags().StringVar(&targetOrg, "target-org", "", "Target organization name (required)")
 	rootCmd.Flags().StringVar(&targetRepo, "target-repo", "", "Target repository name (required for repo-to-repo)")
+	rootCmd.Flags().StringVar(&targetPAT, "target-pat", os.Getenv("TARGET_PAT"), "Target personal access token (env: TARGET_PAT)")
 
 	// Mode flags
 	rootCmd.Flags().BoolVar(&orgToOrg, "org-to-org", false, "Migrate organization variables only")
@@ -163,8 +168,20 @@ func detectMigrationMode() types.MigrationMode {
 
 // runMigration executes the migration based on the detected mode
 func runMigration(cmd *cobra.Command, args []string) error {
-	// Check authentication first
-	if err := checkAuth(); err != nil {
+	// Resolve tokens for source and target
+	sourceToken, targetToken, err := resolveTokens()
+	if err != nil {
+		return err
+	}
+
+	// Create source and target clients
+	sourceClient, targetClient, err := createClients(sourceToken, targetToken)
+	if err != nil {
+		return err
+	}
+
+	// Validate authentication
+	if err := validateAuth(sourceClient, targetClient); err != nil {
 		return err
 	}
 
@@ -211,8 +228,8 @@ func runMigration(cmd *cobra.Command, args []string) error {
 	logger.Info("Force: %v", force)
 	logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-	// Create and run migrator
-	m, err := migrator.New(cfg)
+	// Create and run migrator with both clients
+	m, err := migrator.New(cfg, sourceClient, targetClient)
 	if err != nil {
 		return fmt.Errorf("failed to initialize migrator: %w", err)
 	}
@@ -230,9 +247,110 @@ func runMigration(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// checkAuth verifies that the user is authenticated with GitHub CLI
+// resolveTokens determines which tokens to use for source and target
+func resolveTokens() (sourceToken, targetToken string, err error) {
+	// Check for GITHUB_TOKEN as fallback
+	githubToken := os.Getenv("GITHUB_TOKEN")
+
+	// If both source and target PATs are provided, use them
+	if sourcePAT != "" && targetPAT != "" {
+		return sourcePAT, targetPAT, nil
+	}
+
+	// If GITHUB_TOKEN is set, use it for both
+	if githubToken != "" {
+		if sourcePAT == "" && targetPAT == "" {
+			logger.Info("Using GITHUB_TOKEN for both source and target")
+			return githubToken, githubToken, nil
+		}
+		
+		// Mixed mode: use GITHUB_TOKEN as fallback for missing PAT
+		if sourcePAT == "" {
+			sourcePAT = githubToken
+		}
+		if targetPAT == "" {
+			targetPAT = githubToken
+		}
+		return sourcePAT, targetPAT, nil
+	}
+
+	// If one PAT is missing and GITHUB_TOKEN is not set
+	if sourcePAT == "" || targetPAT == "" {
+		return "", "", fmt.Errorf("authentication required: please provide --source-pat and --target-pat flags, or set GITHUB_TOKEN environment variable")
+	}
+
+	return sourcePAT, targetPAT, nil
+}
+
+// createClients creates source and target API clients
+func createClients(sourceToken, targetToken string) (*client.Client, *client.Client, error) {
+	var sourceClient, targetClient *client.Client
+	var err error
+
+	// If tokens are empty, use default authentication (gh CLI)
+	if sourceToken == "" && targetToken == "" {
+		sourceClient, err = client.New()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create source client: %w", err)
+		}
+		targetClient, err = client.New()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create target client: %w", err)
+		}
+		return sourceClient, targetClient, nil
+	}
+
+	// Create source client with explicit token
+	if sourceToken != "" {
+		sourceClient, err = client.NewWithToken(sourceToken)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create source client with token: %w", err)
+		}
+	} else {
+		sourceClient, err = client.New()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create source client: %w", err)
+		}
+	}
+
+	// Create target client with explicit token
+	if targetToken != "" {
+		targetClient, err = client.NewWithToken(targetToken)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create target client with token: %w", err)
+		}
+	} else {
+		targetClient, err = client.New()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create target client: %w", err)
+		}
+	}
+
+	return sourceClient, targetClient, nil
+}
+
+// validateAuth validates that both source and target clients are authenticated
+func validateAuth(sourceClient, targetClient *client.Client) error {
+	// Validate source authentication
+	sourceUser, err := sourceClient.GetUser()
+	if err != nil {
+		return fmt.Errorf("source authentication failed: %w\n\nPlease check your source credentials", err)
+	}
+
+	// Validate target authentication
+	targetUser, err := targetClient.GetUser()
+	if err != nil {
+		return fmt.Errorf("target authentication failed: %w\n\nPlease check your target credentials", err)
+	}
+
+	logger.Success("Source authenticated as: %s", sourceUser)
+	logger.Success("Target authenticated as: %s", targetUser)
+	return nil
+}
+
+// checkAuth verifies that the user is authenticated with GitHub CLI (used by subcommands)
 func checkAuth() error {
-	client, err := api.DefaultRESTClient()
+	restClient, err := api.DefaultRESTClient()
 	if err != nil {
 		return fmt.Errorf("failed to create GitHub API client: %w\n\nPlease authenticate using: gh auth login", err)
 	}
@@ -241,7 +359,7 @@ func checkAuth() error {
 		Login string `json:"login"`
 	}
 
-	if err := client.Get("user", &user); err != nil {
+	if err := restClient.Get("user", &user); err != nil {
 		return fmt.Errorf("authentication failed: %w\n\nPlease authenticate using: gh auth login", err)
 	}
 
