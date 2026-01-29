@@ -14,11 +14,31 @@ type Client struct {
 	restClient *api.RESTClient
 }
 
-// New creates a new GitHub API client
+// New creates a new GitHub API client using default authentication
 func New() (*Client, error) {
 	restClient, err := api.DefaultRESTClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GitHub API client: %w", err)
+	}
+
+	return &Client{
+		restClient: restClient,
+	}, nil
+}
+
+// NewWithToken creates a new GitHub API client with an explicit token
+func NewWithToken(token string) (*Client, error) {
+	if token == "" {
+		return nil, fmt.Errorf("token cannot be empty")
+	}
+
+	opts := api.ClientOptions{
+		AuthToken: token,
+	}
+
+	restClient, err := api.NewRESTClient(opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GitHub API client with token: %w", err)
 	}
 
 	return &Client{
@@ -278,4 +298,17 @@ func (c *Client) CreateEnvironment(owner, repo, envName string) error {
 	}
 
 	return nil
+}
+
+// GetUser retrieves the authenticated user information
+func (c *Client) GetUser() (string, error) {
+	var user struct {
+		Login string `json:"login"`
+	}
+
+	if err := c.restClient.Get("user", &user); err != nil {
+		return "", fmt.Errorf("failed to get user: %w", err)
+	}
+
+	return user.Login, nil
 }

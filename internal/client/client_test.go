@@ -246,3 +246,14 @@ func TestUpdateOrgVariable_RequestBody(t *testing.T) {
 		t.Errorf("Expected value updated_value, got %s", decoded["value"])
 	}
 }
+
+// TestNewWithToken_EmptyToken verifies that NewWithToken rejects empty tokens
+func TestNewWithToken_EmptyToken(t *testing.T) {
+	_, err := NewWithToken("")
+	if err == nil {
+		t.Error("Expected error for empty token, got nil")
+	}
+	if err != nil && err.Error() != "token cannot be empty" {
+		t.Errorf("Expected 'token cannot be empty' error, got: %v", err)
+	}
+}
