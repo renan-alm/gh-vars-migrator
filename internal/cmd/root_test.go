@@ -17,16 +17,16 @@ func TestResolveTokens_BothPATsProvided(t *testing.T) {
 		sourcePAT = origSourcePAT
 		targetPAT = origTargetPAT
 		if origGitHubToken != "" {
-			os.Setenv("GITHUB_TOKEN", origGitHubToken)
+			_ = os.Setenv("GITHUB_TOKEN", origGitHubToken)
 		} else {
-			os.Unsetenv("GITHUB_TOKEN")
+			_ = os.Unsetenv("GITHUB_TOKEN")
 		}
 	}()
 
 	// Set test values
 	sourcePAT = "source_token_123"
 	targetPAT = "target_token_456"
-	os.Unsetenv("GITHUB_TOKEN")
+	_ = os.Unsetenv("GITHUB_TOKEN")
 
 	sourceToken, targetToken, err := resolveTokens()
 	if err != nil {
@@ -54,16 +54,16 @@ func TestResolveTokens_GitHubTokenFallback(t *testing.T) {
 		sourcePAT = origSourcePAT
 		targetPAT = origTargetPAT
 		if origGitHubToken != "" {
-			os.Setenv("GITHUB_TOKEN", origGitHubToken)
+			_ = os.Setenv("GITHUB_TOKEN", origGitHubToken)
 		} else {
-			os.Unsetenv("GITHUB_TOKEN")
+			_ = os.Unsetenv("GITHUB_TOKEN")
 		}
 	}()
 
 	// Set test values
 	sourcePAT = ""
 	targetPAT = ""
-	os.Setenv("GITHUB_TOKEN", "github_token_789")
+	_ = os.Setenv("GITHUB_TOKEN", "github_token_789")
 
 	sourceToken, targetToken, err := resolveTokens()
 	if err != nil {
@@ -91,16 +91,16 @@ func TestResolveTokens_MixedMode(t *testing.T) {
 		sourcePAT = origSourcePAT
 		targetPAT = origTargetPAT
 		if origGitHubToken != "" {
-			os.Setenv("GITHUB_TOKEN", origGitHubToken)
+			_ = os.Setenv("GITHUB_TOKEN", origGitHubToken)
 		} else {
-			os.Unsetenv("GITHUB_TOKEN")
+			_ = os.Unsetenv("GITHUB_TOKEN")
 		}
 	}()
 
 	// Test case 1: Only source PAT provided
 	sourcePAT = "source_token_abc"
 	targetPAT = ""
-	os.Setenv("GITHUB_TOKEN", "github_token_xyz")
+	_ = os.Setenv("GITHUB_TOKEN", "github_token_xyz")
 
 	sourceToken, targetToken, err := resolveTokens()
 	if err != nil {
@@ -118,7 +118,7 @@ func TestResolveTokens_MixedMode(t *testing.T) {
 	// Test case 2: Only target PAT provided
 	sourcePAT = ""
 	targetPAT = "target_token_def"
-	os.Setenv("GITHUB_TOKEN", "github_token_xyz")
+	_ = os.Setenv("GITHUB_TOKEN", "github_token_xyz")
 
 	sourceToken, targetToken, err = resolveTokens()
 	if err != nil {
@@ -146,16 +146,16 @@ func TestResolveTokens_NoTokensProvided(t *testing.T) {
 		sourcePAT = origSourcePAT
 		targetPAT = origTargetPAT
 		if origGitHubToken != "" {
-			os.Setenv("GITHUB_TOKEN", origGitHubToken)
+			_ = os.Setenv("GITHUB_TOKEN", origGitHubToken)
 		} else {
-			os.Unsetenv("GITHUB_TOKEN")
+			_ = os.Unsetenv("GITHUB_TOKEN")
 		}
 	}()
 
 	// Set test values - no tokens provided
 	sourcePAT = ""
 	targetPAT = ""
-	os.Unsetenv("GITHUB_TOKEN")
+	_ = os.Unsetenv("GITHUB_TOKEN")
 
 	_, _, err := resolveTokens()
 	if err == nil {
@@ -180,16 +180,16 @@ func TestResolveTokens_OnlySourcePATNoFallback(t *testing.T) {
 		sourcePAT = origSourcePAT
 		targetPAT = origTargetPAT
 		if origGitHubToken != "" {
-			os.Setenv("GITHUB_TOKEN", origGitHubToken)
+			_ = os.Setenv("GITHUB_TOKEN", origGitHubToken)
 		} else {
-			os.Unsetenv("GITHUB_TOKEN")
+			_ = os.Unsetenv("GITHUB_TOKEN")
 		}
 	}()
 
 	// Set test values - only source PAT, no GITHUB_TOKEN
 	sourcePAT = "source_token_only"
 	targetPAT = ""
-	os.Unsetenv("GITHUB_TOKEN")
+	_ = os.Unsetenv("GITHUB_TOKEN")
 
 	_, _, err := resolveTokens()
 	if err == nil {
