@@ -134,7 +134,7 @@ func TestResolveTokens_MixedMode(t *testing.T) {
 	}
 }
 
-// TestResolveTokens_NoTokensProvided tests error case when no tokens are available
+// TestResolveTokens_NoTokensProvided tests fallback to GitHub CLI when no tokens are available
 func TestResolveTokens_NoTokensProvided(t *testing.T) {
 	// Save original values
 	origSourcePAT := sourcePAT
@@ -157,14 +157,18 @@ func TestResolveTokens_NoTokensProvided(t *testing.T) {
 	targetPAT = ""
 	_ = os.Unsetenv("GITHUB_TOKEN")
 
-	_, _, err := resolveTokens()
-	if err == nil {
-		t.Fatal("Expected error when no tokens provided, got nil")
+	sourceToken, targetToken, err := resolveTokens()
+	if err != nil {
+		t.Fatalf("Expected no error for GitHub CLI fallback, got: %v", err)
 	}
 
-	expectedMsg := "authentication required"
-	if len(err.Error()) < len(expectedMsg) || err.Error()[:len(expectedMsg)] != expectedMsg {
-		t.Errorf("Expected error message to start with '%s', got '%s'", expectedMsg, err.Error())
+	// Should return empty strings to allow GitHub CLI fallback
+	if sourceToken != "" {
+		t.Errorf("Expected empty source token for GitHub CLI fallback, got '%s'", sourceToken)
+	}
+
+	if targetToken != "" {
+		t.Errorf("Expected empty target token for GitHub CLI fallback, got '%s'", targetToken)
 	}
 }
 

@@ -267,34 +267,43 @@ func resolveTokens() (sourceToken, targetToken string, err error) {
 	// Check for GITHUB_TOKEN as fallback
 	githubToken := os.Getenv("GITHUB_TOKEN")
 
+	// Resolve source token
+	resolvedSourcePAT := sourcePAT
+	resolvedTargetPAT := targetPAT
+
 	// If both source and target PATs are provided, use them
-	if sourcePAT != "" && targetPAT != "" {
-		return sourcePAT, targetPAT, nil
+	if resolvedSourcePAT != "" && resolvedTargetPAT != "" {
+		return resolvedSourcePAT, resolvedTargetPAT, nil
 	}
 
-	// If GITHUB_TOKEN is set, use it for both
+	// If GITHUB_TOKEN is set, use it for both or as fallback
 	if githubToken != "" {
-		if sourcePAT == "" && targetPAT == "" {
+		if resolvedSourcePAT == "" && resolvedTargetPAT == "" {
 			logger.Info("Using GITHUB_TOKEN for both source and target")
 			return githubToken, githubToken, nil
 		}
 		
 		// Mixed mode: use GITHUB_TOKEN as fallback for missing PAT
-		if sourcePAT == "" {
-			sourcePAT = githubToken
+		if resolvedSourcePAT == "" {
+			resolvedSourcePAT = githubToken
 		}
-		if targetPAT == "" {
-			targetPAT = githubToken
+		if resolvedTargetPAT == "" {
+			resolvedTargetPAT = githubToken
 		}
-		return sourcePAT, targetPAT, nil
+		return resolvedSourcePAT, resolvedTargetPAT, nil
+	}
+
+	// If no tokens provided at all, return empty strings to allow GitHub CLI fallback
+	if resolvedSourcePAT == "" && resolvedTargetPAT == "" {
+		return "", "", nil
 	}
 
 	// If one PAT is missing and GITHUB_TOKEN is not set
-	if sourcePAT == "" || targetPAT == "" {
+	if resolvedSourcePAT == "" || resolvedTargetPAT == "" {
 		return "", "", fmt.Errorf("authentication required: please provide --source-pat and --target-pat flags, or set GITHUB_TOKEN environment variable")
 	}
 
-	return sourcePAT, targetPAT, nil
+	return resolvedSourcePAT, resolvedTargetPAT, nil
 }
 
 // createClients creates source and target API clients
@@ -302,46 +311,37 @@ func createClients(sourceToken, targetToken string) (*client.Client, *client.Cli
 	var sourceClient, targetClient *client.Client
 	var err error
 
-	// If tokens are empty, use default authentication (gh CLI)
-	if sourceToken == "" && targetToken == "" {
-		sourceClient, err = client.New()
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create source client: %w", err)
-		}
-		targetClient, err = client.New()
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create target client: %w", err)
-		}
-		return sourceClient, targetClient, nil
+	// Create source client
+	sourceClient, err = createClientWithToken(sourceToken, "source")
+	if err != nil {
+		return nil, nil, err
 	}
 
-	// Create source client with explicit token
-	if sourceToken != "" {
-		sourceClient, err = client.NewWithToken(sourceToken)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create source client with token: %w", err)
-		}
-	} else {
-		sourceClient, err = client.New()
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create source client: %w", err)
-		}
-	}
-
-	// Create target client with explicit token
-	if targetToken != "" {
-		targetClient, err = client.NewWithToken(targetToken)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create target client with token: %w", err)
-		}
-	} else {
-		targetClient, err = client.New()
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create target client: %w", err)
-		}
+	// Create target client
+	targetClient, err = createClientWithToken(targetToken, "target")
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return sourceClient, targetClient, nil
+}
+
+// createClientWithToken creates a client with an explicit token or default auth
+func createClientWithToken(token string, clientType string) (*client.Client, error) {
+	if token != "" {
+		c, err := client.NewWithToken(token)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create %s client with token: %w", clientType, err)
+		}
+		return c, nil
+	}
+
+	// Fallback to GitHub CLI authentication
+	c, err := client.New()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create %s client: %w", clientType, err)
+	}
+	return c, nil
 }
 
 // validateAuth validates that both source and target clients are authenticated
