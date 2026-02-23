@@ -56,6 +56,51 @@ func NewWithToken(token string) (*Client, error) {
 	}, nil
 }
 
+// NewWithTokenAndHost creates a new GitHub API client with an explicit token and
+// a custom GitHub hostname. Use this for GitHub Enterprise Server or
+// data-residency-specific GitHub Enterprise Cloud instances
+// (e.g., "github.mycompany.com").
+func NewWithTokenAndHost(token, host string) (*Client, error) {
+	if token == "" {
+		return nil, fmt.Errorf("token cannot be empty")
+	}
+
+	opts := api.ClientOptions{
+		AuthToken: token,
+		Host:      host,
+	}
+
+	restClient, err := api.NewRESTClient(opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GitHub API client with token: %w", err)
+	}
+
+	return &Client{
+		restClient: restClient,
+		sleepFn:    time.Sleep,
+	}, nil
+}
+
+// NewWithHost creates a new GitHub API client using GitHub CLI authentication
+// for the specified host. Use this for GitHub Enterprise Server or
+// data-residency-specific GitHub Enterprise Cloud instances when relying on
+// credentials stored by the GitHub CLI (gh auth login --hostname <host>).
+func NewWithHost(host string) (*Client, error) {
+	opts := api.ClientOptions{
+		Host: host,
+	}
+
+	restClient, err := api.NewRESTClient(opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GitHub API client for host %s: %w", host, err)
+	}
+
+	return &Client{
+		restClient: restClient,
+		sleepFn:    time.Sleep,
+	}, nil
+}
+
 // ListRepoVariables lists all variables for a repository
 func (c *Client) ListRepoVariables(owner, repo string) ([]types.Variable, error) {
 	var response struct {

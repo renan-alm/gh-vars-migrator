@@ -259,6 +259,37 @@ func TestNewWithToken_EmptyToken(t *testing.T) {
 	}
 }
 
+// TestNewWithTokenAndHost_EmptyToken verifies that NewWithTokenAndHost rejects empty tokens
+func TestNewWithTokenAndHost_EmptyToken(t *testing.T) {
+	_, err := NewWithTokenAndHost("", "github.mycompany.com")
+	if err == nil {
+		t.Error("Expected error for empty token, got nil")
+	}
+	if err != nil && err.Error() != "token cannot be empty" {
+		t.Errorf("Expected 'token cannot be empty' error, got: %v", err)
+	}
+}
+
+// TestNewWithTokenAndHost_WithToken verifies that NewWithTokenAndHost accepts a token and host
+func TestNewWithTokenAndHost_WithToken(t *testing.T) {
+	// The client will be created successfully; actual API calls would fail without
+	// a valid token and reachable host, but construction itself should succeed.
+	_, err := NewWithTokenAndHost("ghp_validlookingtoken", "github.mycompany.com")
+	// We expect no error during construction; network errors only occur on API calls.
+	if err != nil {
+		t.Errorf("Unexpected error constructing client with token and host: %v", err)
+	}
+}
+
+// TestNewWithTokenAndHost_EmptyHost verifies that NewWithTokenAndHost with empty host
+// behaves the same as NewWithToken (falls back to default github.com host).
+func TestNewWithTokenAndHost_EmptyHost(t *testing.T) {
+	_, err := NewWithTokenAndHost("ghp_validlookingtoken", "")
+	if err != nil {
+		t.Errorf("Unexpected error constructing client with token and empty host: %v", err)
+	}
+}
+
 // TestWaitForRateLimit_HappyPath verifies no sleep occurs when rate limit is healthy
 func TestWaitForRateLimit_HappyPath(t *testing.T) {
 	sleepCalled := false

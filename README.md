@@ -112,6 +112,39 @@ gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg 
 gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo --skip-envs
 ```
 
+#### Data Residency Migration
+
+Organizations with strict data residency requirements can specify custom GitHub hostnames to control which API endpoints are used for the migration. Variable values travel only between the configured source and target endpoints, keeping data within your approved infrastructure.
+
+Use `--source-hostname` and `--target-hostname` to target GitHub Enterprise Server (GHES) instances or data-residency-compliant GitHub Enterprise Cloud (GHEC) endpoints:
+
+```bash
+# Migrate between two GitHub Enterprise Server instances
+gh vars-migrator --source-org myorg --target-org targetorg --org-to-org \
+  --source-hostname github.source-company.com \
+  --target-hostname github.target-company.com \
+  --source-pat ghp_sourcetoken \
+  --target-pat ghp_targettoken
+
+# Migrate from a GHES instance to GitHub.com
+gh vars-migrator --source-org myorg --target-org targetorg --org-to-org \
+  --source-hostname github.mycompany.com \
+  --source-pat ghp_sourcetoken \
+  --target-pat ghp_targettoken
+
+# Migrate from GitHub.com to a data-residency GHEC endpoint
+gh vars-migrator --source-org myorg --source-repo myrepo \
+  --target-org targetorg --target-repo targetrepo \
+  --target-hostname mycompany.ghe.com \
+  --source-pat ghp_sourcetoken \
+  --target-pat ghp_targettoken
+
+# Using GitHub CLI credentials stored for a specific host
+# (requires: gh auth login --hostname github.mycompany.com)
+gh vars-migrator --source-org myorg --target-org targetorg --org-to-org \
+  --source-hostname github.mycompany.com
+```
+
 ### Command Options
 
 #### Source and Target
@@ -124,6 +157,11 @@ gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg 
 - `--source-pat`: Source personal access token (env: `SOURCE_PAT`)
 - `--target-pat`: Target personal access token (env: `TARGET_PAT`)
 - If neither PAT is provided, falls back to `GITHUB_TOKEN` or GitHub CLI auth
+
+#### Data Residency
+- `--source-hostname`: Custom GitHub hostname for the source (e.g., `github.mycompany.com`). Use for GitHub Enterprise Server or data-residency GitHub Enterprise Cloud instances.
+- `--target-hostname`: Custom GitHub hostname for the target (e.g., `github.mycompany.com`). Use for GitHub Enterprise Server or data-residency GitHub Enterprise Cloud instances.
+- When a hostname flag is omitted, the corresponding client defaults to `github.com`.
 
 #### Mode Options
 - `--org-to-org`: Flag to enable organization-level migration mode
