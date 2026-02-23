@@ -26,6 +26,20 @@ func (m *Migrator) migrateOrgToOrg() (*types.MigrationResult, error) {
 
 	// Migrate each variable
 	for _, variable := range sourceVars {
+		// Apply visibility: explicit override takes precedence, then preserve source
+		// visibility, falling back to "all". Variables with "selected" visibility
+		// cannot have their repository list transferred across organisations, so
+		// they are migrated as "all" with a warning unless an explicit override is set.
+		switch {
+		case m.config.OrgVisibility != "":
+			variable.Visibility = m.config.OrgVisibility
+		case variable.Visibility == "selected":
+			logger.Warning("Variable '%s' has 'selected' visibility; migrating as 'all' since selected repository lists cannot be preserved across organizations", variable.Name)
+			variable.Visibility = "all"
+		case variable.Visibility == "":
+			variable.Visibility = "all"
+		}
+
 		if err := m.migrateOrgVariable(variable, result); err != nil {
 			logger.Error("Failed to migrate variable '%s': %v", variable.Name, err)
 			result.AddError(fmt.Errorf("variable '%s': %w", variable.Name, err))

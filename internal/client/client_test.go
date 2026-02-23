@@ -110,28 +110,62 @@ func TestCreateRepoVariable_RequestBody(t *testing.T) {
 
 // TestCreateOrgVariable_RequestBody verifies org variable body includes visibility
 func TestCreateOrgVariable_RequestBody(t *testing.T) {
-	variable := types.Variable{Name: "ORG_VAR", Value: "org_value"}
-	body := map[string]string{
-		"name":       variable.Name,
-		"value":      variable.Value,
-		"visibility": "all",
+	tests := []struct {
+		name               string
+		variable           types.Variable
+		expectedVisibility string
+	}{
+		{
+			name:               "defaults to all when visibility is empty",
+			variable:           types.Variable{Name: "ORG_VAR", Value: "org_value"},
+			expectedVisibility: "all",
+		},
+		{
+			name:               "preserves all visibility",
+			variable:           types.Variable{Name: "ORG_VAR", Value: "org_value", Visibility: "all"},
+			expectedVisibility: "all",
+		},
+		{
+			name:               "preserves private visibility",
+			variable:           types.Variable{Name: "ORG_VAR", Value: "org_value", Visibility: "private"},
+			expectedVisibility: "private",
+		},
+		{
+			name:               "preserves selected visibility",
+			variable:           types.Variable{Name: "ORG_VAR", Value: "org_value", Visibility: "selected"},
+			expectedVisibility: "selected",
+		},
 	}
-	
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		t.Fatalf("Failed to marshal body: %v", err)
-	}
-	
-	var decoded map[string]string
-	if err := json.Unmarshal(bodyBytes, &decoded); err != nil {
-		t.Fatalf("Failed to unmarshal body: %v", err)
-	}
-	
-	if decoded["visibility"] != "all" {
-		t.Errorf("Expected visibility all, got %s", decoded["visibility"])
-	}
-	if decoded["name"] != "ORG_VAR" {
-		t.Errorf("Expected name ORG_VAR, got %s", decoded["name"])
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			visibility := tt.variable.Visibility
+			if visibility == "" {
+				visibility = "all"
+			}
+			body := map[string]string{
+				"name":       tt.variable.Name,
+				"value":      tt.variable.Value,
+				"visibility": visibility,
+			}
+
+			bodyBytes, err := json.Marshal(body)
+			if err != nil {
+				t.Fatalf("Failed to marshal body: %v", err)
+			}
+
+			var decoded map[string]string
+			if err := json.Unmarshal(bodyBytes, &decoded); err != nil {
+				t.Fatalf("Failed to unmarshal body: %v", err)
+			}
+
+			if decoded["visibility"] != tt.expectedVisibility {
+				t.Errorf("Expected visibility %s, got %s", tt.expectedVisibility, decoded["visibility"])
+			}
+			if decoded["name"] != tt.variable.Name {
+				t.Errorf("Expected name %s, got %s", tt.variable.Name, decoded["name"])
+			}
+		})
 	}
 }
 
@@ -223,28 +257,52 @@ func TestUpdateRepoVariable_RequestBody(t *testing.T) {
 
 // TestUpdateOrgVariable_RequestBody verifies org update body includes visibility
 func TestUpdateOrgVariable_RequestBody(t *testing.T) {
-	variable := types.Variable{Name: "ORG_VAR", Value: "updated_value"}
-	body := map[string]string{
-		"name":       variable.Name,
-		"value":      variable.Value,
-		"visibility": "all",
+	tests := []struct {
+		name               string
+		variable           types.Variable
+		expectedVisibility string
+	}{
+		{
+			name:               "defaults to all when visibility is empty",
+			variable:           types.Variable{Name: "ORG_VAR", Value: "updated_value"},
+			expectedVisibility: "all",
+		},
+		{
+			name:               "preserves private visibility on update",
+			variable:           types.Variable{Name: "ORG_VAR", Value: "updated_value", Visibility: "private"},
+			expectedVisibility: "private",
+		},
 	}
-	
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		t.Fatalf("Failed to marshal body: %v", err)
-	}
-	
-	var decoded map[string]string
-	if err := json.Unmarshal(bodyBytes, &decoded); err != nil {
-		t.Fatalf("Failed to unmarshal body: %v", err)
-	}
-	
-	if decoded["visibility"] != "all" {
-		t.Errorf("Expected visibility all in update body, got %s", decoded["visibility"])
-	}
-	if decoded["value"] != "updated_value" {
-		t.Errorf("Expected value updated_value, got %s", decoded["value"])
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			visibility := tt.variable.Visibility
+			if visibility == "" {
+				visibility = "all"
+			}
+			body := map[string]string{
+				"name":       tt.variable.Name,
+				"value":      tt.variable.Value,
+				"visibility": visibility,
+			}
+
+			bodyBytes, err := json.Marshal(body)
+			if err != nil {
+				t.Fatalf("Failed to marshal body: %v", err)
+			}
+
+			var decoded map[string]string
+			if err := json.Unmarshal(bodyBytes, &decoded); err != nil {
+				t.Fatalf("Failed to unmarshal body: %v", err)
+			}
+
+			if decoded["visibility"] != tt.expectedVisibility {
+				t.Errorf("Expected visibility %s in update body, got %s", tt.expectedVisibility, decoded["visibility"])
+			}
+			if decoded["value"] != tt.variable.Value {
+				t.Errorf("Expected value %s, got %s", tt.variable.Value, decoded["value"])
+			}
+		})
 	}
 }
 

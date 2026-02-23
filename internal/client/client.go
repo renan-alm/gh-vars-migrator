@@ -209,10 +209,14 @@ func (c *Client) CreateRepoVariable(owner, repo string, variable types.Variable)
 // CreateOrgVariable creates a new variable in an organization
 func (c *Client) CreateOrgVariable(org string, variable types.Variable) error {
 	path := fmt.Sprintf("orgs/%s/actions/variables", org)
+	visibility := variable.Visibility
+	if visibility == "" {
+		visibility = "all"
+	}
 	body := map[string]string{
 		"name":       variable.Name,
 		"value":      variable.Value,
-		"visibility": "all",
+		"visibility": visibility,
 	}
 
 	bodyBytes, err := json.Marshal(body)
@@ -273,10 +277,14 @@ func (c *Client) UpdateRepoVariable(owner, repo string, variable types.Variable)
 // UpdateOrgVariable updates an existing variable in an organization
 func (c *Client) UpdateOrgVariable(org string, variable types.Variable) error {
 	path := fmt.Sprintf("orgs/%s/actions/variables/%s", org, variable.Name)
+	visibility := variable.Visibility
+	if visibility == "" {
+		visibility = "all"
+	}
 	body := map[string]string{
 		"name":       variable.Name,
 		"value":      variable.Value,
-		"visibility": "all",
+		"visibility": visibility,
 	}
 
 	bodyBytes, err := json.Marshal(body)

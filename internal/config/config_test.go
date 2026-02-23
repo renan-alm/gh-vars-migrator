@@ -78,6 +78,46 @@ func TestValidate_OrgToOrg(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid config with all visibility",
+			cfg: &types.MigrationConfig{
+				Mode:          types.ModeOrgToOrg,
+				SourceOrg:     "source-org",
+				TargetOrg:     "target-org",
+				OrgVisibility: "all",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid config with private visibility",
+			cfg: &types.MigrationConfig{
+				Mode:          types.ModeOrgToOrg,
+				SourceOrg:     "source-org",
+				TargetOrg:     "target-org",
+				OrgVisibility: "private",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid config with selected visibility",
+			cfg: &types.MigrationConfig{
+				Mode:          types.ModeOrgToOrg,
+				SourceOrg:     "source-org",
+				TargetOrg:     "target-org",
+				OrgVisibility: "selected",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid org visibility",
+			cfg: &types.MigrationConfig{
+				Mode:          types.ModeOrgToOrg,
+				SourceOrg:     "source-org",
+				TargetOrg:     "target-org",
+				OrgVisibility: "invalid",
+			},
+			wantErr: true,
+		},
+		{
 			name: "missing source org",
 			cfg: &types.MigrationConfig{
 				Mode:      types.ModeOrgToOrg,

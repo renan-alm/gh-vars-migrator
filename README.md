@@ -87,7 +87,7 @@ gh vars-migrator --source-org srcorg --target-org tgtorg --org-to-org
 Migrate all organization-level variables from one organization to another:
 
 ```bash
-# Basic migration
+# Basic migration (preserves source visibility for each variable)
 gh vars-migrator --source-org myorg --target-org targetorg --org-to-org
 
 # Dry-run mode (preview changes)
@@ -95,7 +95,27 @@ gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --dry-ru
 
 # Force overwrite existing variables
 gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --force
+
+# Set visibility for all migrated variables to 'private'
+gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --org-visibility private
+
+# Set visibility to 'selected' (variables accessible only to selected repositories)
+gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --org-visibility selected
 ```
+
+**Organization variable visibility**
+
+GitHub organization variables have a visibility scope that controls which repositories can access them:
+
+| Scope | Description |
+|-------|-------------|
+| `all` | Accessible by all repositories in the organization |
+| `private` | Accessible only by private repositories |
+| `selected` | Accessible only by explicitly selected repositories |
+
+By default, `gh-vars-migrator` preserves the source variable's visibility when migrating. Use `--org-visibility` to override this for all variables in the migration.
+
+> **Note:** Variables with `selected` visibility cannot have their repository selection list transferred across organizations (repository IDs differ between orgs). When no `--org-visibility` override is provided, such variables are automatically migrated as `all` with a warning. Use `--org-visibility selected` to explicitly migrate them as `selected` (you will need to configure the selected repositories manually afterward).
 
 #### Repository to Repository Migration
 
@@ -166,6 +186,7 @@ gh vars-migrator --source-org myorg --target-org targetorg --org-to-org \
 #### Mode Options
 - `--org-to-org`: Flag to enable organization-level migration mode
 - `--skip-envs`: Skip environment variable migration during repo-to-repo (environments are auto-discovered by default)
+- `--org-visibility`: Visibility for organization variables: `all`, `private`, or `selected`. When omitted, the source variable's visibility is preserved. Variables with `selected` visibility are migrated as `all` unless this flag is set.
 
 #### Behavior Options
 - `--dry-run`: Preview changes without applying them

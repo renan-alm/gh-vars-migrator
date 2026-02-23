@@ -48,6 +48,14 @@ func validateOrgToOrg(cfg *types.MigrationConfig) error {
 	if cfg.TargetOrg == "" {
 		return errors.New("target organization is required")
 	}
+	if cfg.OrgVisibility != "" {
+		switch cfg.OrgVisibility {
+		case "all", "private", "selected":
+			// valid
+		default:
+			return fmt.Errorf("invalid org visibility %q: must be 'all', 'private', or 'selected'", cfg.OrgVisibility)
+		}
+	}
 	return nil
 }
 

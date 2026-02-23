@@ -32,6 +32,9 @@ var (
 	orgToOrg bool
 	skipEnvs bool
 
+	// Organization variable flags
+	orgVisibility string
+
 	// Option flags
 	dryRun bool
 	force  bool
@@ -45,7 +48,7 @@ var rootCmd = &cobra.Command{
 GitHub Actions variables between organizations, repositories, and environments.
 
 It supports:
-  • Organization to organization variable migration
+  • Organization to organization variable migration (with visibility scope control)
   • Repository to repository variable migration (with auto-discovery of environments)
   • Dry-run mode to preview changes before applying
   • Force mode to overwrite existing variables
@@ -54,6 +57,13 @@ It supports:
 Mode Detection:
   - If --org-to-org flag is set → Organization migration mode
   - Otherwise → Repository-to-Repository migration mode (includes all environments)
+
+Organization Variable Visibility:
+  - Use --org-visibility to set the visibility of all migrated org variables
+  - Valid values: all, private, selected
+  - If omitted, the source variable's visibility is preserved
+  - Variables with 'selected' visibility are migrated as 'all' by default (cannot
+    transfer repository selection lists across organizations)
 
 Authentication:
   - Use --source-pat and --target-pat for explicit tokens
@@ -66,8 +76,11 @@ Data Residency:
     Server instances or data-residency-compliant GitHub Enterprise Cloud endpoints.
   - Variable values travel only between the specified source and target API endpoints,
     keeping data within your approved infrastructure.`,
-	Example: `  # Organization to Organization migration
+	Example: `  # Organization to Organization migration (preserves source visibility)
   gh vars-migrator --source-org myorg --target-org targetorg --org-to-org
+
+  # Org migration with explicit visibility override
+  gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --org-visibility private
 
   # Repository to Repository migration (auto-discovers and migrates all environments)
   gh vars-migrator --source-org myorg --source-repo myrepo --target-org targetorg --target-repo targetrepo
@@ -128,6 +141,9 @@ func init() {
 	rootCmd.Flags().BoolVar(&orgToOrg, "org-to-org", false, "Migrate organization variables only")
 	rootCmd.Flags().BoolVar(&skipEnvs, "skip-envs", false, "Skip environment variable migration during repo-to-repo")
 
+	// Organization variable flags
+	rootCmd.Flags().StringVar(&orgVisibility, "org-visibility", "", "Visibility for organization variables: all, private, or selected (default: preserve source visibility)")
+
 	// Option flags
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview changes without applying them")
 	rootCmd.Flags().BoolVar(&force, "force", false, "Overwrite existing variables in target")
@@ -169,9 +185,20 @@ func validateFlags(cmd *cobra.Command, args []string) error {
 		if sourceOrg == targetOrg {
 			return fmt.Errorf("source and target organizations cannot be the same")
 		}
+		if orgVisibility != "" {
+			switch orgVisibility {
+			case "all", "private", "selected":
+				// valid
+			default:
+				return fmt.Errorf("--org-visibility must be one of: all, private, selected")
+			}
+		}
 
 	case types.ModeRepoToRepo:
 		// Repo-to-repo: requires source repo and target repo
+		if orgVisibility != "" {
+			return fmt.Errorf("--org-visibility is only applicable with --org-to-org flag")
+		}
 		if sourceRepo == "" {
 			return fmt.Errorf("--source-repo is required for repository migration")
 		}
@@ -236,6 +263,8 @@ func runMigration(cmd *cobra.Command, args []string) error {
 	// Set mode-specific configuration
 	switch mode {
 	case types.ModeOrgToOrg:
+		cfg.OrgVisibility = orgVisibility
+
 		logger.Info("gh-vars-migrator - Organization Variable Migration")
 		logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 		logger.Info("Source: %s", sourceOrg)
@@ -245,6 +274,11 @@ func runMigration(cmd *cobra.Command, args []string) error {
 		logger.Info("Target: %s", targetOrg)
 		if targetHostname != "" {
 			logger.Info("Target Host: %s", targetHostname)
+		}
+		if orgVisibility != "" {
+			logger.Info("Org Visibility: %s", orgVisibility)
+		} else {
+			logger.Info("Org Visibility: preserve source (default)")
 		}
 
 	case types.ModeRepoToRepo:
