@@ -18,7 +18,7 @@ func TestListRepoVariables_PathConstruction(t *testing.T) {
 	owner := "test-owner"
 	repo := "test-repo"
 	expectedPath := fmt.Sprintf("repos/%s/%s/actions/variables", owner, repo)
-	
+
 	if expectedPath != "repos/test-owner/test-repo/actions/variables" {
 		t.Errorf("Path construction failed: got %s", expectedPath)
 	}
@@ -28,7 +28,7 @@ func TestListRepoVariables_PathConstruction(t *testing.T) {
 func TestListOrgVariables_PathConstruction(t *testing.T) {
 	org := "test-org"
 	expectedPath := fmt.Sprintf("orgs/%s/actions/variables", org)
-	
+
 	if expectedPath != "orgs/test-org/actions/variables" {
 		t.Errorf("Path construction failed: got %s", expectedPath)
 	}
@@ -40,7 +40,7 @@ func TestListEnvVariables_PathConstruction(t *testing.T) {
 	repo := "test-repo"
 	env := "production"
 	expectedPath := fmt.Sprintf("repos/%s/%s/environments/%s/variables", owner, repo, env)
-	
+
 	if expectedPath != "repos/test-owner/test-repo/environments/production/variables" {
 		t.Errorf("Path construction failed: got %s", expectedPath)
 	}
@@ -52,7 +52,7 @@ func TestGetRepoVariable_PathConstruction(t *testing.T) {
 	repo := "test-repo"
 	name := "VAR_NAME"
 	expectedPath := fmt.Sprintf("repos/%s/%s/actions/variables/%s", owner, repo, name)
-	
+
 	if expectedPath != "repos/test-owner/test-repo/actions/variables/VAR_NAME" {
 		t.Errorf("Path construction failed: got %s", expectedPath)
 	}
@@ -63,7 +63,7 @@ func TestGetOrgVariable_PathConstruction(t *testing.T) {
 	org := "test-org"
 	name := "VAR_NAME"
 	expectedPath := fmt.Sprintf("orgs/%s/actions/variables/%s", org, name)
-	
+
 	if expectedPath != "orgs/test-org/actions/variables/VAR_NAME" {
 		t.Errorf("Path construction failed: got %s", expectedPath)
 	}
@@ -76,7 +76,7 @@ func TestGetEnvVariable_PathConstruction(t *testing.T) {
 	env := "production"
 	name := "VAR_NAME"
 	expectedPath := fmt.Sprintf("repos/%s/%s/environments/%s/variables/%s", owner, repo, env, name)
-	
+
 	if expectedPath != "repos/test-owner/test-repo/environments/production/variables/VAR_NAME" {
 		t.Errorf("Path construction failed: got %s", expectedPath)
 	}
@@ -89,17 +89,17 @@ func TestCreateRepoVariable_RequestBody(t *testing.T) {
 		"name":  variable.Name,
 		"value": variable.Value,
 	}
-	
+
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		t.Fatalf("Failed to marshal body: %v", err)
 	}
-	
+
 	var decoded map[string]string
 	if err := json.Unmarshal(bodyBytes, &decoded); err != nil {
 		t.Fatalf("Failed to unmarshal body: %v", err)
 	}
-	
+
 	if decoded["name"] != "TEST_VAR" {
 		t.Errorf("Expected name TEST_VAR, got %s", decoded["name"])
 	}
@@ -114,6 +114,7 @@ func TestCreateOrgVariable_RequestBody(t *testing.T) {
 		name               string
 		variable           types.Variable
 		expectedVisibility string
+		expectRepoIDs      bool
 	}{
 		{
 			name:               "defaults to all when visibility is empty",
@@ -131,9 +132,10 @@ func TestCreateOrgVariable_RequestBody(t *testing.T) {
 			expectedVisibility: "private",
 		},
 		{
-			name:               "preserves selected visibility",
-			variable:           types.Variable{Name: "ORG_VAR", Value: "org_value", Visibility: "selected"},
+			name:               "preserves selected visibility with repo IDs",
+			variable:           types.Variable{Name: "ORG_VAR", Value: "org_value", Visibility: "selected", SelectedRepositoryIDs: []int64{1, 2, 3}},
 			expectedVisibility: "selected",
+			expectRepoIDs:      true,
 		},
 	}
 
@@ -143,10 +145,13 @@ func TestCreateOrgVariable_RequestBody(t *testing.T) {
 			if visibility == "" {
 				visibility = "all"
 			}
-			body := map[string]string{
+			body := map[string]interface{}{
 				"name":       tt.variable.Name,
 				"value":      tt.variable.Value,
 				"visibility": visibility,
+			}
+			if visibility == "selected" {
+				body["selected_repository_ids"] = tt.variable.SelectedRepositoryIDs
 			}
 
 			bodyBytes, err := json.Marshal(body)
@@ -154,7 +159,7 @@ func TestCreateOrgVariable_RequestBody(t *testing.T) {
 				t.Fatalf("Failed to marshal body: %v", err)
 			}
 
-			var decoded map[string]string
+			var decoded map[string]interface{}
 			if err := json.Unmarshal(bodyBytes, &decoded); err != nil {
 				t.Fatalf("Failed to unmarshal body: %v", err)
 			}
@@ -164,6 +169,14 @@ func TestCreateOrgVariable_RequestBody(t *testing.T) {
 			}
 			if decoded["name"] != tt.variable.Name {
 				t.Errorf("Expected name %s, got %s", tt.variable.Name, decoded["name"])
+			}
+
+			_, hasRepoIDs := decoded["selected_repository_ids"]
+			if tt.expectRepoIDs && !hasRepoIDs {
+				t.Error("Expected selected_repository_ids in body for 'selected' visibility")
+			}
+			if !tt.expectRepoIDs && hasRepoIDs {
+				t.Error("Did not expect selected_repository_ids in body")
 			}
 		})
 	}
@@ -176,17 +189,17 @@ func TestCreateEnvVariable_RequestBody(t *testing.T) {
 		"name":  variable.Name,
 		"value": variable.Value,
 	}
-	
+
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		t.Fatalf("Failed to marshal body: %v", err)
 	}
-	
+
 	var decoded map[string]string
 	if err := json.Unmarshal(bodyBytes, &decoded); err != nil {
 		t.Fatalf("Failed to unmarshal body: %v", err)
 	}
-	
+
 	if decoded["name"] != "ENV_VAR" {
 		t.Errorf("Expected name ENV_VAR, got %s", decoded["name"])
 	}
@@ -202,7 +215,7 @@ func TestUpdateRepoVariable_PathConstruction(t *testing.T) {
 	repo := "test-repo"
 	varName := "MY_VAR"
 	expectedPath := fmt.Sprintf("repos/%s/%s/actions/variables/%s", owner, repo, varName)
-	
+
 	if expectedPath != "repos/test-owner/test-repo/actions/variables/MY_VAR" {
 		t.Errorf("Update path construction failed: got %s", expectedPath)
 	}
@@ -213,7 +226,7 @@ func TestUpdateOrgVariable_PathConstruction(t *testing.T) {
 	org := "test-org"
 	varName := "MY_VAR"
 	expectedPath := fmt.Sprintf("orgs/%s/actions/variables/%s", org, varName)
-	
+
 	if expectedPath != "orgs/test-org/actions/variables/MY_VAR" {
 		t.Errorf("Org update path construction failed: got %s", expectedPath)
 	}
@@ -226,7 +239,7 @@ func TestUpdateEnvVariable_PathConstruction(t *testing.T) {
 	env := "staging"
 	varName := "ENV_VAR"
 	expectedPath := fmt.Sprintf("repos/%s/%s/environments/%s/variables/%s", owner, repo, env, varName)
-	
+
 	if expectedPath != "repos/test-owner/test-repo/environments/staging/variables/ENV_VAR" {
 		t.Errorf("Env update path construction failed: got %s", expectedPath)
 	}
@@ -239,17 +252,17 @@ func TestUpdateRepoVariable_RequestBody(t *testing.T) {
 		"name":  variable.Name,
 		"value": variable.Value,
 	}
-	
+
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		t.Fatalf("Failed to marshal body: %v", err)
 	}
-	
+
 	var decoded map[string]string
 	if err := json.Unmarshal(bodyBytes, &decoded); err != nil {
 		t.Fatalf("Failed to unmarshal body: %v", err)
 	}
-	
+
 	if decoded["value"] != "new_value" {
 		t.Errorf("Expected value new_value, got %s", decoded["value"])
 	}
@@ -261,6 +274,7 @@ func TestUpdateOrgVariable_RequestBody(t *testing.T) {
 		name               string
 		variable           types.Variable
 		expectedVisibility string
+		expectRepoIDs      bool
 	}{
 		{
 			name:               "defaults to all when visibility is empty",
@@ -272,6 +286,12 @@ func TestUpdateOrgVariable_RequestBody(t *testing.T) {
 			variable:           types.Variable{Name: "ORG_VAR", Value: "updated_value", Visibility: "private"},
 			expectedVisibility: "private",
 		},
+		{
+			name:               "selected visibility includes repo IDs",
+			variable:           types.Variable{Name: "ORG_VAR", Value: "updated_value", Visibility: "selected", SelectedRepositoryIDs: []int64{10, 20}},
+			expectedVisibility: "selected",
+			expectRepoIDs:      true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -280,10 +300,13 @@ func TestUpdateOrgVariable_RequestBody(t *testing.T) {
 			if visibility == "" {
 				visibility = "all"
 			}
-			body := map[string]string{
+			body := map[string]interface{}{
 				"name":       tt.variable.Name,
 				"value":      tt.variable.Value,
 				"visibility": visibility,
+			}
+			if visibility == "selected" {
+				body["selected_repository_ids"] = tt.variable.SelectedRepositoryIDs
 			}
 
 			bodyBytes, err := json.Marshal(body)
@@ -291,7 +314,7 @@ func TestUpdateOrgVariable_RequestBody(t *testing.T) {
 				t.Fatalf("Failed to marshal body: %v", err)
 			}
 
-			var decoded map[string]string
+			var decoded map[string]interface{}
 			if err := json.Unmarshal(bodyBytes, &decoded); err != nil {
 				t.Fatalf("Failed to unmarshal body: %v", err)
 			}
@@ -302,7 +325,37 @@ func TestUpdateOrgVariable_RequestBody(t *testing.T) {
 			if decoded["value"] != tt.variable.Value {
 				t.Errorf("Expected value %s, got %s", tt.variable.Value, decoded["value"])
 			}
+
+			_, hasRepoIDs := decoded["selected_repository_ids"]
+			if tt.expectRepoIDs && !hasRepoIDs {
+				t.Error("Expected selected_repository_ids in update body for 'selected' visibility")
+			}
+			if !tt.expectRepoIDs && hasRepoIDs {
+				t.Error("Did not expect selected_repository_ids in update body")
+			}
 		})
+	}
+}
+
+// TestListOrgVariableSelectedRepos_PathConstruction verifies the path construction
+func TestListOrgVariableSelectedRepos_PathConstruction(t *testing.T) {
+	org := "test-org"
+	varName := "MY_VAR"
+	expectedPath := fmt.Sprintf("orgs/%s/actions/variables/%s/repositories", org, varName)
+
+	if expectedPath != "orgs/test-org/actions/variables/MY_VAR/repositories" {
+		t.Errorf("Path construction failed: got %s", expectedPath)
+	}
+}
+
+// TestGetRepo_PathConstruction verifies the path construction
+func TestGetRepo_PathConstruction(t *testing.T) {
+	owner := "test-org"
+	name := "my-repo"
+	expectedPath := fmt.Sprintf("repos/%s/%s", owner, name)
+
+	if expectedPath != "repos/test-org/my-repo" {
+		t.Errorf("Path construction failed: got %s", expectedPath)
 	}
 }
 
@@ -412,7 +465,7 @@ func TestWaitForRateLimit_AlreadyReset(t *testing.T) {
 	sleepCalled := false
 	rl := &types.RateLimitInfo{
 		Limit:     5000,
-		Remaining: 0, // exhausted
+		Remaining: 0,                                 // exhausted
 		ResetTime: time.Now().Add(-10 * time.Second), // already past
 	}
 

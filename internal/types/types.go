@@ -25,10 +25,17 @@ type RateLimitInfo struct {
 
 // Variable represents a GitHub Actions variable
 type Variable struct {
-	Name       string `json:"name"`
-	Value      string `json:"value"`
-	Visibility string `json:"visibility,omitempty"`
-	UpdatedAt  string `json:"updated_at,omitempty"`
+	Name                  string  `json:"name"`
+	Value                 string  `json:"value"`
+	Visibility            string  `json:"visibility,omitempty"`
+	UpdatedAt             string  `json:"updated_at,omitempty"`
+	SelectedRepositoryIDs []int64 `json:"selected_repository_ids,omitempty"`
+}
+
+// Repository represents a GitHub repository
+type Repository struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
 }
 
 // Environment represents a GitHub repository environment
@@ -63,9 +70,6 @@ type MigrationConfig struct {
 
 	// Environment variables settings
 	SkipEnvs bool
-
-	// Organization variable settings
-	OrgVisibility string
 
 	// Options
 	DryRun bool
