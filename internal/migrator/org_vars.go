@@ -11,6 +11,9 @@ import (
 func (m *Migrator) migrateOrgToOrg() (*types.MigrationResult, error) {
 	result := &types.MigrationResult{}
 
+	// Check rate limit before starting the API-intensive migration
+	m.sourceClient.WaitForRateLimit()
+
 	logger.Info("Fetching variables from source organization: %s", m.config.SourceOrg)
 
 	// Get source organization variables using source client
