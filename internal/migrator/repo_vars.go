@@ -11,6 +11,9 @@ import (
 func (m *Migrator) migrateRepoToRepo() (*types.MigrationResult, error) {
 	result := &types.MigrationResult{}
 
+	// Check rate limit before starting the API-intensive migration
+	m.sourceClient.WaitForRateLimit()
+
 	logger.Info("Fetching variables from source repository: %s/%s", m.config.SourceOwner, m.config.SourceRepo)
 
 	// Get source repository variables using source client

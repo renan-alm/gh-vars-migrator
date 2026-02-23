@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/renan-alm/gh-vars-migrator/internal/types"
 )
@@ -255,5 +256,82 @@ func TestNewWithToken_EmptyToken(t *testing.T) {
 	}
 	if err != nil && err.Error() != "token cannot be empty" {
 		t.Errorf("Expected 'token cannot be empty' error, got: %v", err)
+	}
+}
+
+// TestWaitForRateLimit_HappyPath verifies no sleep occurs when rate limit is healthy
+func TestWaitForRateLimit_HappyPath(t *testing.T) {
+	sleepCalled := false
+	rl := &types.RateLimitInfo{
+		Limit:     5000,
+		Remaining: 4500,
+		ResetTime: time.Now().Add(1 * time.Hour),
+	}
+
+	waitForRateLimit(rl, minRemainingRequests, func(d time.Duration) {
+		sleepCalled = true
+	})
+
+	if sleepCalled {
+		t.Error("Expected no sleep when rate limit is healthy, but sleepFn was called")
+	}
+}
+
+// TestWaitForRateLimit_NearLimit verifies sleep is triggered when remaining is below threshold
+func TestWaitForRateLimit_NearLimit(t *testing.T) {
+	var sleptDuration time.Duration
+	resetIn := 30 * time.Second
+	rl := &types.RateLimitInfo{
+		Limit:     5000,
+		Remaining: 5, // below minRemainingRequests (10)
+		ResetTime: time.Now().Add(resetIn),
+	}
+
+	waitForRateLimit(rl, minRemainingRequests, func(d time.Duration) {
+		sleptDuration = d
+	})
+
+	if sleptDuration <= 0 {
+		t.Error("Expected sleepFn to be called with a positive duration, but it was not")
+	}
+	// Sleep duration should be approximately resetIn + 5s buffer
+	if sleptDuration < resetIn {
+		t.Errorf("Expected sleep duration >= %s, got %s", resetIn, sleptDuration)
+	}
+}
+
+// TestWaitForRateLimit_AtThreshold verifies no sleep occurs when remaining equals threshold
+func TestWaitForRateLimit_AtThreshold(t *testing.T) {
+	sleepCalled := false
+	rl := &types.RateLimitInfo{
+		Limit:     5000,
+		Remaining: minRemainingRequests, // exactly at threshold
+		ResetTime: time.Now().Add(1 * time.Hour),
+	}
+
+	waitForRateLimit(rl, minRemainingRequests, func(d time.Duration) {
+		sleepCalled = true
+	})
+
+	if sleepCalled {
+		t.Error("Expected no sleep at threshold boundary, but sleepFn was called")
+	}
+}
+
+// TestWaitForRateLimit_AlreadyReset verifies no sleep occurs when reset time is in the past
+func TestWaitForRateLimit_AlreadyReset(t *testing.T) {
+	sleepCalled := false
+	rl := &types.RateLimitInfo{
+		Limit:     5000,
+		Remaining: 0, // exhausted
+		ResetTime: time.Now().Add(-10 * time.Second), // already past
+	}
+
+	waitForRateLimit(rl, minRemainingRequests, func(d time.Duration) {
+		sleepCalled = true
+	})
+
+	if sleepCalled {
+		t.Error("Expected no sleep when reset time has already passed, but sleepFn was called")
 	}
 }

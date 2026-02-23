@@ -4,14 +4,20 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/renan-alm/gh-vars-migrator/internal/logger"
 	"github.com/renan-alm/gh-vars-migrator/internal/types"
 )
+
+// minRemainingRequests is the threshold below which WaitForRateLimit will pause migration.
+const minRemainingRequests = 10
 
 // Client is a wrapper around the GitHub API client
 type Client struct {
 	restClient *api.RESTClient
+	sleepFn    func(time.Duration)
 }
 
 // New creates a new GitHub API client using default authentication
@@ -23,6 +29,7 @@ func New() (*Client, error) {
 
 	return &Client{
 		restClient: restClient,
+		sleepFn:    time.Sleep,
 	}, nil
 }
 
@@ -43,6 +50,7 @@ func NewWithToken(token string) (*Client, error) {
 
 	return &Client{
 		restClient: restClient,
+		sleepFn:    time.Sleep,
 	}, nil
 }
 
@@ -311,4 +319,60 @@ func (c *Client) GetUser() (string, error) {
 	}
 
 	return user.Login, nil
+}
+
+// GetRateLimit retrieves the current GitHub API rate limit status.
+func (c *Client) GetRateLimit() (*types.RateLimitInfo, error) {
+	var response struct {
+		Resources struct {
+			Core struct {
+				Limit     int   `json:"limit"`
+				Remaining int   `json:"remaining"`
+				Reset     int64 `json:"reset"`
+			} `json:"core"`
+		} `json:"resources"`
+	}
+
+	if err := c.restClient.Get("rate_limit", &response); err != nil {
+		return nil, fmt.Errorf("failed to get rate limit: %w", err)
+	}
+
+	return &types.RateLimitInfo{
+		Limit:     response.Resources.Core.Limit,
+		Remaining: response.Resources.Core.Remaining,
+		ResetTime: time.Unix(response.Resources.Core.Reset, 0),
+	}, nil
+}
+
+// WaitForRateLimit checks the current rate limit and pauses if remaining calls are critically low.
+// It logs the current rate limit status and, if below the minimum threshold, waits until reset.
+func (c *Client) WaitForRateLimit() {
+	rl, err := c.GetRateLimit()
+	if err != nil {
+		logger.Warning("Failed to check rate limit: %v", err)
+		return
+	}
+
+	waitForRateLimit(rl, minRemainingRequests, c.sleepFn)
+}
+
+// waitForRateLimit logs rate limit status and sleeps until reset when remaining is critically low.
+// Extracted for unit testability without HTTP calls.
+func waitForRateLimit(rl *types.RateLimitInfo, minRemaining int, sleepFn func(time.Duration)) {
+	logger.Info("Rate limit status: %d/%d remaining (resets at %s)",
+		rl.Remaining, rl.Limit, rl.ResetTime.UTC().Format(time.RFC3339))
+
+	if rl.Remaining >= minRemaining {
+		return
+	}
+
+	waitDuration := time.Until(rl.ResetTime) + 5*time.Second
+	if waitDuration <= 0 {
+		return
+	}
+
+	logger.Warning("Rate limit critically low (%d remaining). Waiting %s until reset at %s",
+		rl.Remaining, waitDuration.Round(time.Second), rl.ResetTime.UTC().Format(time.RFC3339))
+	sleepFn(waitDuration)
+	logger.Info("Rate limit reset. Resuming migration.")
 }
