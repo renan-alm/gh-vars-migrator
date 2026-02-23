@@ -1,6 +1,9 @@
 package types
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 // Error definitions for migration operations
 var (
@@ -12,6 +15,13 @@ var (
 	ErrMissingSourceOrg   = errors.New("missing source organization")
 	ErrMissingTargetOrg   = errors.New("missing target organization")
 )
+
+// RateLimitInfo holds rate limit information from the GitHub API
+type RateLimitInfo struct {
+	Limit     int
+	Remaining int
+	ResetTime time.Time
+}
 
 // Variable represents a GitHub Actions variable
 type Variable struct {
