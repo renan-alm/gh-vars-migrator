@@ -17,14 +17,16 @@ var (
 	Version = "dev"
 
 	// Source flags
-	sourceOrg string
-	sourceRepo string
-	sourcePAT string
+	sourceOrg      string
+	sourceRepo     string
+	sourcePAT      string
+	sourceHostname string
 
 	// Target flags
-	targetOrg string
-	targetRepo string
-	targetPAT string
+	targetOrg      string
+	targetRepo     string
+	targetPAT      string
+	targetHostname string
 
 	// Mode flags
 	orgToOrg bool
@@ -47,6 +49,7 @@ It supports:
   • Repository to repository variable migration (with auto-discovery of environments)
   • Dry-run mode to preview changes before applying
   • Force mode to overwrite existing variables
+  • Data residency compliance via custom GitHub hostnames
 
 Mode Detection:
   - If --org-to-org flag is set → Organization migration mode
@@ -56,7 +59,13 @@ Authentication:
   - Use --source-pat and --target-pat for explicit tokens
   - Or set SOURCE_PAT and TARGET_PAT environment variables
   - Falls back to GITHUB_TOKEN if set
-  - Otherwise uses GitHub CLI authentication (gh auth login)`,
+  - Otherwise uses GitHub CLI authentication (gh auth login)
+
+Data Residency:
+  - Use --source-hostname and --target-hostname to target specific GitHub Enterprise
+    Server instances or data-residency-compliant GitHub Enterprise Cloud endpoints.
+  - Variable values travel only between the specified source and target API endpoints,
+    keeping data within your approved infrastructure.`,
 	Example: `  # Organization to Organization migration
   gh vars-migrator --source-org myorg --target-org targetorg --org-to-org
 
@@ -81,6 +90,11 @@ Authentication:
   export TARGET_PAT=ghp_targettoken
   gh vars-migrator --source-org myorg --target-org targetorg --org-to-org
 
+  # Data residency: migrate between GitHub Enterprise Server instances
+  gh vars-migrator --source-org myorg --target-org targetorg --org-to-org \
+    --source-hostname github.source-company.com --target-hostname github.target-company.com \
+    --source-pat ghp_sourcetoken --target-pat ghp_targettoken
+
   # Utility commands
   gh vars-migrator auth
   gh vars-migrator list --org myorg`,
@@ -102,11 +116,13 @@ func init() {
 	rootCmd.Flags().StringVar(&sourceOrg, "source-org", "", "Source organization name (required)")
 	rootCmd.Flags().StringVar(&sourceRepo, "source-repo", "", "Source repository name (required for repo-to-repo)")
 	rootCmd.Flags().StringVar(&sourcePAT, "source-pat", os.Getenv("SOURCE_PAT"), "Source personal access token (env: SOURCE_PAT)")
+	rootCmd.Flags().StringVar(&sourceHostname, "source-hostname", "", "Source GitHub hostname for data residency (e.g., github.mycompany.com)")
 
 	// Target flags
 	rootCmd.Flags().StringVar(&targetOrg, "target-org", "", "Target organization name (required)")
 	rootCmd.Flags().StringVar(&targetRepo, "target-repo", "", "Target repository name (required for repo-to-repo)")
 	rootCmd.Flags().StringVar(&targetPAT, "target-pat", os.Getenv("TARGET_PAT"), "Target personal access token (env: TARGET_PAT)")
+	rootCmd.Flags().StringVar(&targetHostname, "target-hostname", "", "Target GitHub hostname for data residency (e.g., github.mycompany.com)")
 
 	// Mode flags
 	rootCmd.Flags().BoolVar(&orgToOrg, "org-to-org", false, "Migrate organization variables only")
@@ -223,7 +239,13 @@ func runMigration(cmd *cobra.Command, args []string) error {
 		logger.Info("gh-vars-migrator - Organization Variable Migration")
 		logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 		logger.Info("Source: %s", sourceOrg)
+		if sourceHostname != "" {
+			logger.Info("Source Host: %s", sourceHostname)
+		}
 		logger.Info("Target: %s", targetOrg)
+		if targetHostname != "" {
+			logger.Info("Target Host: %s", targetHostname)
+		}
 
 	case types.ModeRepoToRepo:
 		cfg.SourceOwner = sourceOrg
@@ -235,7 +257,13 @@ func runMigration(cmd *cobra.Command, args []string) error {
 		logger.Info("gh-vars-migrator - Repository Variable Migration")
 		logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 		logger.Info("Source: %s/%s", cfg.SourceOwner, cfg.SourceRepo)
+		if sourceHostname != "" {
+			logger.Info("Source Host: %s", sourceHostname)
+		}
 		logger.Info("Target: %s/%s", cfg.TargetOwner, cfg.TargetRepo)
+		if targetHostname != "" {
+			logger.Info("Target Host: %s", targetHostname)
+		}
 		if skipEnvs {
 			logger.Info("Skip Environments: true")
 		} else {
@@ -317,13 +345,13 @@ func createClients(sourceToken, targetToken string) (*client.Client, *client.Cli
 	var err error
 
 	// Create source client
-	sourceClient, err = createClientWithToken(sourceToken, "source")
+	sourceClient, err = createClientWithToken(sourceToken, sourceHostname, "source")
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Create target client
-	targetClient, err = createClientWithToken(targetToken, "target")
+	targetClient, err = createClientWithToken(targetToken, targetHostname, "target")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -331,9 +359,17 @@ func createClients(sourceToken, targetToken string) (*client.Client, *client.Cli
 	return sourceClient, targetClient, nil
 }
 
-// createClientWithToken creates a client with an explicit token or default auth
-func createClientWithToken(token string, clientType string) (*client.Client, error) {
+// createClientWithToken creates a client with an explicit token or default auth,
+// optionally scoped to a custom GitHub hostname for data residency compliance.
+func createClientWithToken(token string, hostname string, clientType string) (*client.Client, error) {
 	if token != "" {
+		if hostname != "" {
+			c, err := client.NewWithTokenAndHost(token, hostname)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create %s client with token and host: %w", clientType, err)
+			}
+			return c, nil
+		}
 		c, err := client.NewWithToken(token)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create %s client with token: %w", clientType, err)
@@ -341,7 +377,15 @@ func createClientWithToken(token string, clientType string) (*client.Client, err
 		return c, nil
 	}
 
-	// Fallback to GitHub CLI authentication
+	// Fallback to GitHub CLI authentication, with optional custom hostname
+	if hostname != "" {
+		c, err := client.NewWithHost(hostname)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create %s client for host %s: %w", clientType, hostname, err)
+		}
+		return c, nil
+	}
+
 	c, err := client.New()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create %s client: %w", clientType, err)
