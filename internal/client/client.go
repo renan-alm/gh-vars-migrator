@@ -209,10 +209,17 @@ func (c *Client) CreateRepoVariable(owner, repo string, variable types.Variable)
 // CreateOrgVariable creates a new variable in an organization
 func (c *Client) CreateOrgVariable(org string, variable types.Variable) error {
 	path := fmt.Sprintf("orgs/%s/actions/variables", org)
-	body := map[string]string{
+	visibility := variable.Visibility
+	if visibility == "" {
+		visibility = "all"
+	}
+	body := map[string]interface{}{
 		"name":       variable.Name,
 		"value":      variable.Value,
-		"visibility": "all",
+		"visibility": visibility,
+	}
+	if visibility == "selected" {
+		body["selected_repository_ids"] = variable.SelectedRepositoryIDs
 	}
 
 	bodyBytes, err := json.Marshal(body)
@@ -273,10 +280,17 @@ func (c *Client) UpdateRepoVariable(owner, repo string, variable types.Variable)
 // UpdateOrgVariable updates an existing variable in an organization
 func (c *Client) UpdateOrgVariable(org string, variable types.Variable) error {
 	path := fmt.Sprintf("orgs/%s/actions/variables/%s", org, variable.Name)
-	body := map[string]string{
+	visibility := variable.Visibility
+	if visibility == "" {
+		visibility = "all"
+	}
+	body := map[string]interface{}{
 		"name":       variable.Name,
 		"value":      variable.Value,
-		"visibility": "all",
+		"visibility": visibility,
+	}
+	if visibility == "selected" {
+		body["selected_repository_ids"] = variable.SelectedRepositoryIDs
 	}
 
 	bodyBytes, err := json.Marshal(body)
@@ -311,6 +325,35 @@ func (c *Client) UpdateEnvVariable(owner, repo, env string, variable types.Varia
 	}
 
 	return nil
+}
+
+// ListOrgVariableSelectedRepos returns the repositories selected for an
+// organization variable that has "selected" visibility.
+func (c *Client) ListOrgVariableSelectedRepos(org, varName string) ([]types.Repository, error) {
+	var response struct {
+		Repositories []types.Repository `json:"repositories"`
+	}
+
+	path := fmt.Sprintf("orgs/%s/actions/variables/%s/repositories", org, varName)
+	if err := c.restClient.Get(path, &response); err != nil {
+		return nil, fmt.Errorf("failed to list selected repositories for variable %s: %w", varName, err)
+	}
+
+	return response.Repositories, nil
+}
+
+// GetRepo retrieves a repository by owner and name. Returns the repository
+// details including its ID, which is needed when mapping repository names
+// between organisations during migration.
+func (c *Client) GetRepo(owner, name string) (*types.Repository, error) {
+	var repo types.Repository
+
+	path := fmt.Sprintf("repos/%s/%s", owner, name)
+	if err := c.restClient.Get(path, &repo); err != nil {
+		return nil, err
+	}
+
+	return &repo, nil
 }
 
 // ListEnvironments lists all environments for a repository

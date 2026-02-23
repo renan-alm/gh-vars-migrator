@@ -87,7 +87,7 @@ gh vars-migrator --source-org srcorg --target-org tgtorg --org-to-org
 Migrate all organization-level variables from one organization to another:
 
 ```bash
-# Basic migration
+# Basic migration (preserves source visibility for each variable)
 gh vars-migrator --source-org myorg --target-org targetorg --org-to-org
 
 # Dry-run mode (preview changes)
@@ -96,6 +96,18 @@ gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --dry-ru
 # Force overwrite existing variables
 gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --force
 ```
+
+**Organization variable visibility**
+
+GitHub organization variables have a visibility scope that controls which repositories can access them:
+
+| Scope | Description |
+|-------|-------------|
+| `all` | Accessible by all repositories in the organization |
+| `private` | Accessible only by private repositories |
+| `selected` | Accessible only by explicitly selected repositories |
+
+`gh-vars-migrator` automatically preserves the source variable's visibility when migrating. For variables with `selected` visibility, the tool fetches the selected repository names from the source organization and matches them by name in the target organization. Only repositories whose names exist in both organizations are included in the target's selection list. If no matching repositories are found, the variable is created with an empty selection (zero repositories).
 
 #### Repository to Repository Migration
 

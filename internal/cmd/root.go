@@ -45,7 +45,7 @@ var rootCmd = &cobra.Command{
 GitHub Actions variables between organizations, repositories, and environments.
 
 It supports:
-  • Organization to organization variable migration
+  • Organization to organization variable migration (with automatic visibility preservation)
   • Repository to repository variable migration (with auto-discovery of environments)
   • Dry-run mode to preview changes before applying
   • Force mode to overwrite existing variables
@@ -54,6 +54,13 @@ It supports:
 Mode Detection:
   - If --org-to-org flag is set → Organization migration mode
   - Otherwise → Repository-to-Repository migration mode (includes all environments)
+
+Organization Variable Visibility:
+  - Source variable visibility is automatically preserved during migration
+  - Variables with 'selected' visibility have their repository selections matched
+    by name in the target organisation
+  - If no matching repositories are found, the variable is created with zero
+    selected repositories
 
 Authentication:
   - Use --source-pat and --target-pat for explicit tokens
@@ -66,7 +73,7 @@ Data Residency:
     Server instances or data-residency-compliant GitHub Enterprise Cloud endpoints.
   - Variable values travel only between the specified source and target API endpoints,
     keeping data within your approved infrastructure.`,
-	Example: `  # Organization to Organization migration
+	Example: `  # Organization to Organization migration (preserves source visibility)
   gh vars-migrator --source-org myorg --target-org targetorg --org-to-org
 
   # Repository to Repository migration (auto-discovers and migrates all environments)
@@ -246,6 +253,7 @@ func runMigration(cmd *cobra.Command, args []string) error {
 		if targetHostname != "" {
 			logger.Info("Target Host: %s", targetHostname)
 		}
+		logger.Info("Org Visibility: preserve source")
 
 	case types.ModeRepoToRepo:
 		cfg.SourceOwner = sourceOrg
@@ -315,7 +323,7 @@ func resolveTokens() (sourceToken, targetToken string, err error) {
 			logger.Info("Using GITHUB_TOKEN for both source and target")
 			return githubToken, githubToken, nil
 		}
-		
+
 		// Mixed mode: use GITHUB_TOKEN as fallback for missing PAT
 		if resolvedSourcePAT == "" {
 			resolvedSourcePAT = githubToken
