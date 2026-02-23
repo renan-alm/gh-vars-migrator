@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -306,6 +308,33 @@ func (c *Client) CreateEnvironment(owner, repo, envName string) error {
 	}
 
 	return nil
+}
+
+// GetTokenScopes returns the OAuth scopes associated with the token by inspecting
+// the X-OAuth-Scopes response header. Returns nil if the header is absent (e.g.
+// fine-grained PATs or GITHUB_TOKEN from Actions), indicating scope validation
+// should be skipped.
+func (c *Client) GetTokenScopes() ([]string, error) {
+	resp, err := c.restClient.Request("GET", "user", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve token scopes: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	_, _ = io.Copy(io.Discard, resp.Body)
+
+	scopesHeader := resp.Header.Get("X-OAuth-Scopes")
+	if scopesHeader == "" {
+		return nil, nil
+	}
+
+	parts := strings.Split(scopesHeader, ",")
+	scopes := make([]string, 0, len(parts))
+	for _, s := range parts {
+		if trimmed := strings.TrimSpace(s); trimmed != "" {
+			scopes = append(scopes, trimmed)
+		}
+	}
+	return scopes, nil
 }
 
 // GetUser retrieves the authenticated user information

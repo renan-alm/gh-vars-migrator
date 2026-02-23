@@ -203,6 +203,11 @@ func runMigration(cmd *cobra.Command, args []string) error {
 	// Detect migration mode
 	mode := detectMigrationMode()
 
+	// Validate PAT permissions before starting migration
+	if err := validatePermissions(sourceClient, targetClient, mode); err != nil {
+		return err
+	}
+
 	// Build migration configuration
 	cfg := &types.MigrationConfig{
 		Mode:      mode,
@@ -342,6 +347,33 @@ func createClientWithToken(token string, clientType string) (*client.Client, err
 		return nil, fmt.Errorf("failed to create %s client: %w", clientType, err)
 	}
 	return c, nil
+}
+
+// validatePermissions validates that source and target tokens have the required
+// OAuth scopes for the given migration mode. Validation is skipped when tokens
+// do not expose scopes (e.g. fine-grained PATs or GITHUB_TOKEN).
+func validatePermissions(sourceClient, targetClient *client.Client, mode types.MigrationMode) error {
+	logger.Info("Validating token permissions...")
+
+	switch mode {
+	case types.ModeOrgToOrg:
+		if err := client.ValidateOrgScopes(sourceClient, "source"); err != nil {
+			return err
+		}
+		if err := client.ValidateOrgScopes(targetClient, "target"); err != nil {
+			return err
+		}
+	case types.ModeRepoToRepo:
+		if err := client.ValidateRepoScopes(sourceClient, "source"); err != nil {
+			return err
+		}
+		if err := client.ValidateRepoScopes(targetClient, "target"); err != nil {
+			return err
+		}
+	}
+
+	logger.Success("Token permissions validated")
+	return nil
 }
 
 // validateAuth validates that both source and target clients are authenticated
