@@ -319,7 +319,7 @@ func (c *Client) GetTokenScopes() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve token scopes: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, resp.Body)
 
 	scopesHeader := resp.Header.Get("X-OAuth-Scopes")
