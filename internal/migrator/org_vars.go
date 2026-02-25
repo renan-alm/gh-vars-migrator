@@ -65,7 +65,7 @@ func (m *Migrator) resolveSelectedRepos(varName string) ([]int64, error) {
 	}
 
 	if len(sourceRepos) == 0 {
-		return nil, nil
+		return []int64{}, nil
 	}
 
 	var targetIDs []int64

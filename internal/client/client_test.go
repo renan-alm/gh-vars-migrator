@@ -3,11 +3,17 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/renan-alm/gh-vars-migrator/internal/types"
 )
+
+// contains is a helper that wraps strings.Contains for test readability.
+func contains(s, substr string) bool {
+	return strings.Contains(s, substr)
+}
 
 // NOTE: The client package wraps the GitHub API client which is difficult to mock
 // without modifying the production code. These tests verify the logic and data
@@ -137,6 +143,18 @@ func TestCreateOrgVariable_RequestBody(t *testing.T) {
 			expectedVisibility: "selected",
 			expectRepoIDs:      true,
 		},
+		{
+			name:               "selected visibility with nil IDs sends empty array",
+			variable:           types.Variable{Name: "ORG_VAR", Value: "org_value", Visibility: "selected", SelectedRepositoryIDs: nil},
+			expectedVisibility: "selected",
+			expectRepoIDs:      true,
+		},
+		{
+			name:               "selected visibility with empty IDs sends empty array",
+			variable:           types.Variable{Name: "ORG_VAR", Value: "org_value", Visibility: "selected", SelectedRepositoryIDs: []int64{}},
+			expectedVisibility: "selected",
+			expectRepoIDs:      true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -151,7 +169,11 @@ func TestCreateOrgVariable_RequestBody(t *testing.T) {
 				"visibility": visibility,
 			}
 			if visibility == "selected" {
-				body["selected_repository_ids"] = tt.variable.SelectedRepositoryIDs
+				ids := tt.variable.SelectedRepositoryIDs
+				if ids == nil {
+					ids = []int64{}
+				}
+				body["selected_repository_ids"] = ids
 			}
 
 			bodyBytes, err := json.Marshal(body)
@@ -177,6 +199,14 @@ func TestCreateOrgVariable_RequestBody(t *testing.T) {
 			}
 			if !tt.expectRepoIDs && hasRepoIDs {
 				t.Error("Did not expect selected_repository_ids in body")
+			}
+
+			// Ensure selected_repository_ids is never null in the JSON
+			if tt.expectRepoIDs {
+				raw := string(bodyBytes)
+				if contains(raw, `"selected_repository_ids":null`) {
+					t.Error("selected_repository_ids must not be null; expected an empty array []")
+				}
 			}
 		})
 	}
@@ -292,6 +322,18 @@ func TestUpdateOrgVariable_RequestBody(t *testing.T) {
 			expectedVisibility: "selected",
 			expectRepoIDs:      true,
 		},
+		{
+			name:               "selected visibility with nil IDs sends empty array",
+			variable:           types.Variable{Name: "ORG_VAR", Value: "updated_value", Visibility: "selected", SelectedRepositoryIDs: nil},
+			expectedVisibility: "selected",
+			expectRepoIDs:      true,
+		},
+		{
+			name:               "selected visibility with empty IDs sends empty array",
+			variable:           types.Variable{Name: "ORG_VAR", Value: "updated_value", Visibility: "selected", SelectedRepositoryIDs: []int64{}},
+			expectedVisibility: "selected",
+			expectRepoIDs:      true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -306,7 +348,11 @@ func TestUpdateOrgVariable_RequestBody(t *testing.T) {
 				"visibility": visibility,
 			}
 			if visibility == "selected" {
-				body["selected_repository_ids"] = tt.variable.SelectedRepositoryIDs
+				ids := tt.variable.SelectedRepositoryIDs
+				if ids == nil {
+					ids = []int64{}
+				}
+				body["selected_repository_ids"] = ids
 			}
 
 			bodyBytes, err := json.Marshal(body)
@@ -332,6 +378,14 @@ func TestUpdateOrgVariable_RequestBody(t *testing.T) {
 			}
 			if !tt.expectRepoIDs && hasRepoIDs {
 				t.Error("Did not expect selected_repository_ids in update body")
+			}
+
+			// Ensure selected_repository_ids is never null in the JSON
+			if tt.expectRepoIDs {
+				raw := string(bodyBytes)
+				if contains(raw, `"selected_repository_ids":null`) {
+					t.Error("selected_repository_ids must not be null; expected an empty array []")
+				}
 			}
 		})
 	}
