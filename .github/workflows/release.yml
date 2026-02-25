@@ -12,10 +12,10 @@ permissions:
 
 jobs:
   validate:
-    name: Validate Release
+    name: Pre-Release Validation
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.extract-version.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -23,32 +23,207 @@ jobs:
           fetch-depth: 0
 
       - name: Extract version from tag
-        id: extract-version
+        id: version
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/}"
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
           else
-            VERSION="dev-${GITHUB_SHA::8}"
+            echo "version=dev-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
           fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Extracted version: ${VERSION}"
 
-      - name: Validate changelog entry
+      # Only do changelog generation on real tags
+      - name: Get previous tag
+        id: prev_tag
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          VERSION="${{ steps.extract-version.outputs.version }}"
-          VERSION_NO_V="${VERSION#v}"
-          
-          # Check for version with or without 'v' prefix
-          if ! grep -q "## \[${VERSION}\]" CHANGELOG.md && \
-             ! grep -q "## ${VERSION}" CHANGELOG.md && \
-             ! grep -q "## \[${VERSION_NO_V}\]" CHANGELOG.md && \
-             ! grep -q "## ${VERSION_NO_V}" CHANGELOG.md; then
-            echo "Error: No changelog entry found for version ${VERSION}"
-            echo "Please add a changelog entry in CHANGELOG.md"
-            exit 1
+          set -euo pipefail
+          CURRENT_TAG="v${{ steps.version.outputs.version }}"
+          echo "📌 Current tag: $CURRENT_TAG"
+
+          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -v "^${CURRENT_TAG}$" | head -1)
+
+          if [ -z "$PREV_TAG" ]; then
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+            echo "📌 No previous tag found, using first commit: $PREV_TAG"
+          else
+            echo "📌 Previous tag: $PREV_TAG"
           fi
-          echo "Changelog entry found for ${VERSION}"
+
+          echo "prev_tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Generate and update CHANGELOG
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -e
+          VERSION=${{ steps.version.outputs.version }}
+          PREV_TAG=${{ steps.prev_tag.outputs.prev_tag }}
+          CURRENT_TAG="v$VERSION"
+          DATE=$(date -u +%Y-%m-%d)
+
+          echo "📝 Generating changelog for $PREV_TAG..$CURRENT_TAG"
+
+          > /tmp/added.txt
+          > /tmp/changed.txt
+          > /tmp/fixed.txt
+          > /tmp/other.txt
+          > /tmp/processed_messages.txt
+
+          categorize_line() {
+            local line="$1"
+            local hash="$2"
+
+            [ -z "$line" ] && return
+
+            if grep -qFx "$line" /tmp/processed_messages.txt 2>/dev/null; then
+              return
+            fi
+            echo "$line" >> /tmp/processed_messages.txt
+
+            clean_msg=$(echo "$line" | sed -E 's/^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]*\))?!?:\s*//')
+
+            if [ -n "$hash" ] && ! echo "$clean_msg" | grep -qE '\([a-f0-9]+\)$'; then
+              clean_msg="$clean_msg ($hash)"
+            fi
+
+            if echo "$line" | grep -qE '^feat(\([^)]*\))?!?:'; then
+              echo "- $clean_msg" >> /tmp/added.txt
+            elif echo "$line" | grep -qE '^fix(\([^)]*\))?!?:'; then
+              echo "- $clean_msg" >> /tmp/fixed.txt
+            elif echo "$line" | grep -qE '^(refactor|perf|build|ci|style)(\([^)]*\))?!?:'; then
+              echo "- $clean_msg" >> /tmp/changed.txt
+            elif echo "$line" | grep -qE '^(docs|test|chore)(\([^)]*\))?!?:'; then
+              return
+            else
+              if ! echo "$line" | grep -qE '^Merge (pull request|branch)'; then
+                echo "- $clean_msg" >> /tmp/other.txt
+              fi
+            fi
+          }
+
+          DELIM="---COMMIT_END---"
+
+          git log --format="%H%n%s%n%b%n$DELIM" "$PREV_TAG".."$CURRENT_TAG" | while IFS= read -r hash; do
+            IFS= read -r subject || true
+
+            body=""
+            while IFS= read -r bodyline; do
+              [ "$bodyline" = "$DELIM" ] && break
+              body="$body$bodyline"$'\n'
+            done
+
+            short_hash="${hash:0:7}"
+
+            if echo "$subject" | grep -qE '^(feat|fix|refactor|perf|build|ci|style|docs|test|chore|revert)(\([^)]*\))?!?:'; then
+              categorize_line "$subject" "$short_hash"
+            else
+              found_in_body=false
+              echo "$body" | while IFS= read -r line; do
+                if echo "$line" | grep -qE '^\* (feat|fix|refactor|perf|build|ci|style|docs|test|chore|revert)(\([^)]*\))?!?:'; then
+                  clean_line=$(echo "$line" | sed 's/^\* //')
+                  categorize_line "$clean_line" "$short_hash"
+                  found_in_body=true
+                elif echo "$line" | grep -qE '^(feat|fix|refactor|perf|build|ci|style|docs|test|chore|revert)(\([^)]*\))?!?:'; then
+                  categorize_line "$line" "$short_hash"
+                  found_in_body=true
+                fi
+              done
+
+              if [ "$found_in_body" = false ] && ! echo "$subject" | grep -qE '^Merge (pull request|branch)'; then
+                categorize_line "$subject" "$short_hash"
+              fi
+            fi
+          done
+
+          if [ ! -s /tmp/added.txt ] && [ ! -s /tmp/changed.txt ] && [ ! -s /tmp/fixed.txt ] && [ ! -s /tmp/other.txt ]; then
+            echo "⚠️ No categorizable commits found between $PREV_TAG and $CURRENT_TAG"
+            echo "- Release $VERSION" > /tmp/other.txt
+          fi
+
+          echo "## [v$VERSION] - $DATE" > /tmp/new_entry.txt
+
+          if [ -s /tmp/added.txt ]; then
+            echo "" >> /tmp/new_entry.txt
+            echo "### Added" >> /tmp/new_entry.txt
+            echo "" >> /tmp/new_entry.txt
+            cat /tmp/added.txt >> /tmp/new_entry.txt
+          fi
+
+          if [ -s /tmp/changed.txt ]; then
+            echo "" >> /tmp/new_entry.txt
+            echo "### Changed" >> /tmp/new_entry.txt
+            echo "" >> /tmp/new_entry.txt
+            cat /tmp/changed.txt >> /tmp/new_entry.txt
+          fi
+
+          if [ -s /tmp/fixed.txt ]; then
+            echo "" >> /tmp/new_entry.txt
+            echo "### Fixed" >> /tmp/new_entry.txt
+            echo "" >> /tmp/new_entry.txt
+            cat /tmp/fixed.txt >> /tmp/new_entry.txt
+          fi
+
+          if [ -s /tmp/other.txt ]; then
+            echo "" >> /tmp/new_entry.txt
+            echo "### Other" >> /tmp/new_entry.txt
+            echo "" >> /tmp/new_entry.txt
+            cat /tmp/other.txt >> /tmp/new_entry.txt
+          fi
+
+          echo "" >> /tmp/new_entry.txt
+
+          # Insert after [Unreleased] section if present; otherwise before first version section
+          if grep -n "^## \[Unreleased\]" CHANGELOG.md > /dev/null; then
+            UNRELEASED_LINE=$(grep -n "^## \[Unreleased\]" CHANGELOG.md | cut -d: -f1)
+            NEXT_SECTION=$(tail -n +"$((UNRELEASED_LINE + 1))" CHANGELOG.md | grep -n "^## \[" | head -1 | cut -d: -f1)
+
+            if [ -n "$NEXT_SECTION" ]; then
+              INSERT_LINE=$((UNRELEASED_LINE + NEXT_SECTION))
+            else
+              INSERT_LINE=$(wc -l < CHANGELOG.md)
+            fi
+          else
+            FIRST_SECTION_LINE=$(grep -n "^## " CHANGELOG.md | head -1 | cut -d: -f1 || true)
+            if [ -n "$FIRST_SECTION_LINE" ]; then
+              INSERT_LINE=$FIRST_SECTION_LINE
+            else
+              INSERT_LINE=$(wc -l < CHANGELOG.md)
+            fi
+          fi
+
+          TOTAL_LINES=$(wc -l < CHANGELOG.md)
+          if [ "$INSERT_LINE" -lt "$TOTAL_LINES" ]; then
+            head -n "$INSERT_LINE" CHANGELOG.md > /tmp/changelog_new.md
+            cat /tmp/new_entry.txt >> /tmp/changelog_new.md
+            tail -n +"$((INSERT_LINE + 1))" CHANGELOG.md >> /tmp/changelog_new.md
+          else
+            cat CHANGELOG.md > /tmp/changelog_new.md
+            cat /tmp/new_entry.txt >> /tmp/changelog_new.md
+          fi
+          mv /tmp/changelog_new.md CHANGELOG.md
+
+          # Release notes file (omit the "## [vX.Y.Z] - date" header)
+          tail -n +2 /tmp/new_entry.txt > /tmp/release_notes.md
+
+      - name: Upload release notes artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-notes
+          path: /tmp/release_notes.md
+          retention-days: 1
+
+      - name: Commit and push CHANGELOG
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          if git diff --cached --quiet -- CHANGELOG.md; then
+            echo "No changes to commit"
+          else
+            git commit -m "docs: update CHANGELOG for v${{ steps.version.outputs.version }}"
+            git push origin HEAD:main
+          fi
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -96,18 +271,17 @@ jobs:
           CGO_ENABLED: 0
         run: |
           mkdir -p dist
-          VERSION="${{ needs.validate.outputs.version }}"
+          VERSION="v${{ needs.validate.outputs.version }}"
           if [ "${{ matrix.goos }}" = "windows" ]; then
             BINARY_NAME="gh-vars-migrator-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}.exe"
           else
             BINARY_NAME="gh-vars-migrator-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
           fi
           go build -o "dist/${BINARY_NAME}" -ldflags "-s -w" .
-          echo "Built: dist/${BINARY_NAME}"
         shell: bash
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v6
         with:
           name: binary-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*
@@ -122,7 +296,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v7.0.0
+        uses: actions/download-artifact@v7
         with:
           path: dist
           pattern: binary-*
@@ -132,41 +306,29 @@ jobs:
         run: |
           cd dist
           sha256sum ./* > checksums.txt
-          cat checksums.txt
 
-      - name: Extract changelog for version
-        id: changelog
-        run: |
-          VERSION="${{ needs.validate.outputs.version }}"
-          
-          # Extract changelog section for this version
-          # This handles both [v0.1.0] and v0.1.0 formats, with or without dates
-          # It extracts from the version header until the next version header or end of file
-          awk -v ver="$VERSION" '
-            BEGIN { found=0; printing=0 }
-            /^## \[?v?[0-9]+\.[0-9]+\.[0-9]+\]?/ {
-              if (printing) exit
-              if (index($0, ver) > 0) { found=1; printing=1; next }
-            }
-            printing { print }
-          ' CHANGELOG.md > release_notes.md
-          
-          # If no content was extracted, use a default message
-          if [ ! -s release_notes.md ]; then
-            echo "Release ${VERSION}" > release_notes.md
-          fi
-          
-          echo "Release notes:"
-          cat release_notes.md
-
-      - name: Create GitHub Release
+      - name: Create GitHub Release (initial)
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
         with:
-          body_path: release_notes.md
           files: |
             dist/*
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download release notes
+        uses: actions/download-artifact@v7
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: release-notes
+          path: /tmp
+
+      - name: Update release notes (overwrite body)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          gh release edit "$TAG_NAME" --notes-file /tmp/release_notes.md
