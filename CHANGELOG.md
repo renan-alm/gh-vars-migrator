@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [v0.2.0] - 2026-01-29
+## [v0.3.0] - 2026-02-25
+
+### Added
+
+- Add Organization Variable Visibility Scope and Data Residency Support (2d60459)
+- Add pre-commit hook for golang lint (71d2ed0)
+- add org variable visibility scope support with --org-visibility flag (#30) (6e8d183)
+- add data residency support via --source-hostname and --target-hostname (#29) (6939f6c)
+- Add pre-flight PAT permission validation for variable migration (#28) (166c40e)
+
+### Changed
+
+- change release process (a8672e3)
+- Use empty array instead of nil for repository IDs (#32) (d7bf5ec)
+
+### Fixed
+
+- Harmonize PATs used for auth + docs: Remove refactoring instructions (#31) (b60f093)
+
+### Other
+
+- Revert "feat: Add Organization Variable Visibility Scope and Data Residency Support" (6077303)
+- Implement rate limit monitoring and handling for variable migration (#27) (532c1d9)
+
 
 ### Added
 - **Resilient API Client**: Implemented centralized retry logic with exponential backoff for GitHub API calls to handle transient errors and rate limits
