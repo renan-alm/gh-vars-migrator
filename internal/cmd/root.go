@@ -63,10 +63,10 @@ Organization Variable Visibility:
     selected repositories
 
 Authentication:
-  - Use --source-pat and --target-pat for explicit tokens
-  - Or set SOURCE_PAT and TARGET_PAT environment variables
-  - Falls back to GITHUB_TOKEN if set
-  - Otherwise uses GitHub CLI authentication (gh auth login)
+  - Primary: GITHUB_TOKEN environment variable (used for both source and target)
+  - Override: --source-pat / --target-pat flags take precedence over GITHUB_TOKEN
+  - Override: SOURCE_PAT / TARGET_PAT env vars (when flags are not provided)
+  - Fallback: GitHub CLI authentication (gh auth login) when no tokens are set
 
 Data Residency:
   - Use --source-hostname and --target-hostname to target specific GitHub Enterprise
@@ -122,13 +122,13 @@ func init() {
 	// Source flags
 	rootCmd.Flags().StringVar(&sourceOrg, "source-org", "", "Source organization name (required)")
 	rootCmd.Flags().StringVar(&sourceRepo, "source-repo", "", "Source repository name (required for repo-to-repo)")
-	rootCmd.Flags().StringVar(&sourcePAT, "source-pat", os.Getenv("SOURCE_PAT"), "Source personal access token (env: SOURCE_PAT)")
+	rootCmd.Flags().StringVar(&sourcePAT, "source-pat", os.Getenv("SOURCE_PAT"), "Source personal access token; overrides GITHUB_TOKEN (env: SOURCE_PAT)")
 	rootCmd.Flags().StringVar(&sourceHostname, "source-hostname", "", "Source GitHub hostname for data residency (e.g., github.mycompany.com)")
 
 	// Target flags
 	rootCmd.Flags().StringVar(&targetOrg, "target-org", "", "Target organization name (required)")
 	rootCmd.Flags().StringVar(&targetRepo, "target-repo", "", "Target repository name (required for repo-to-repo)")
-	rootCmd.Flags().StringVar(&targetPAT, "target-pat", os.Getenv("TARGET_PAT"), "Target personal access token (env: TARGET_PAT)")
+	rootCmd.Flags().StringVar(&targetPAT, "target-pat", os.Getenv("TARGET_PAT"), "Target personal access token; overrides GITHUB_TOKEN (env: TARGET_PAT)")
 	rootCmd.Flags().StringVar(&targetHostname, "target-hostname", "", "Target GitHub hostname for data residency (e.g., github.mycompany.com)")
 
 	// Mode flags
@@ -303,48 +303,61 @@ func runMigration(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// resolveTokens determines which tokens to use for source and target
+// resolveTokens determines which tokens to use for source and target.
+//
+// Priority per side (source / target):
+//  1. --source-pat / --target-pat flag  (highest)
+//  2. SOURCE_PAT / TARGET_PAT env var   (loaded as flag default)
+//  3. GITHUB_TOKEN env var              (primary shared token)
+//  4. GitHub CLI authentication         (lowest – empty string returned)
 func resolveTokens() (sourceToken, targetToken string, err error) {
-	// Check for GITHUB_TOKEN as fallback
 	githubToken := os.Getenv("GITHUB_TOKEN")
 
-	// Resolve source token
-	resolvedSourcePAT := sourcePAT
-	resolvedTargetPAT := targetPAT
+	// Start with GITHUB_TOKEN as the primary default for both sides.
+	sourceToken = githubToken
+	targetToken = githubToken
 
-	// If both source and target PATs are provided, use them
-	if resolvedSourcePAT != "" && resolvedTargetPAT != "" {
-		return resolvedSourcePAT, resolvedTargetPAT, nil
+	// Override with explicit PATs when provided.
+	if sourcePAT != "" {
+		sourceToken = sourcePAT
+	}
+	if targetPAT != "" {
+		targetToken = targetPAT
 	}
 
-	// If GITHUB_TOKEN is set, use it for both or as fallback
-	if githubToken != "" {
-		if resolvedSourcePAT == "" && resolvedTargetPAT == "" {
-			logger.Info("Using GITHUB_TOKEN for both source and target")
-			return githubToken, githubToken, nil
-		}
+	// Determine the label for each side's credential.
+	sourceLabel := credentialLabel(sourcePAT, githubToken, "SOURCE_PAT", "GITHUB_TOKEN", "GitHub CLI")
+	targetLabel := credentialLabel(targetPAT, githubToken, "TARGET_PAT", "GITHUB_TOKEN", "GitHub CLI")
 
-		// Mixed mode: use GITHUB_TOKEN as fallback for missing PAT
-		if resolvedSourcePAT == "" {
-			resolvedSourcePAT = githubToken
-		}
-		if resolvedTargetPAT == "" {
-			resolvedTargetPAT = githubToken
-		}
-		return resolvedSourcePAT, resolvedTargetPAT, nil
+	// Log which credential is used for each side.
+	logger.Info("%s used for Source Org %s", sourceLabel, sourceOrg)
+	logger.Info("%s used for Target Org %s", targetLabel, targetOrg)
+
+	// Both resolved → done.
+	if sourceToken != "" && targetToken != "" {
+		return sourceToken, targetToken, nil
 	}
 
-	// If no tokens provided at all, return empty strings to allow GitHub CLI fallback
-	if resolvedSourcePAT == "" && resolvedTargetPAT == "" {
+	// Neither resolved → fall back to GitHub CLI authentication.
+	if sourceToken == "" && targetToken == "" {
 		return "", "", nil
 	}
 
-	// If one PAT is missing and GITHUB_TOKEN is not set
-	if resolvedSourcePAT == "" || resolvedTargetPAT == "" {
-		return "", "", fmt.Errorf("authentication required: please provide --source-pat and --target-pat flags, or set GITHUB_TOKEN environment variable")
-	}
+	// One side resolved, the other did not → cannot proceed.
+	return "", "", fmt.Errorf("authentication required: please provide --source-pat and --target-pat flags, or set GITHUB_TOKEN environment variable")
+}
 
-	return resolvedSourcePAT, resolvedTargetPAT, nil
+// credentialLabel returns a human-readable label describing which credential
+// was selected for one side of the migration (e.g. "SOURCE_PAT", "GITHUB_TOKEN",
+// or "GitHub CLI").
+func credentialLabel(pat, githubToken, patName, ghTokenName, cliFallback string) string {
+	if pat != "" {
+		return patName
+	}
+	if githubToken != "" {
+		return ghTokenName
+	}
+	return cliFallback
 }
 
 // createClients creates source and target API clients
