@@ -219,7 +219,11 @@ func (c *Client) CreateOrgVariable(org string, variable types.Variable) error {
 		"visibility": visibility,
 	}
 	if visibility == "selected" {
-		body["selected_repository_ids"] = variable.SelectedRepositoryIDs
+		ids := variable.SelectedRepositoryIDs
+		if ids == nil {
+			ids = []int64{}
+		}
+		body["selected_repository_ids"] = ids
 	}
 
 	bodyBytes, err := json.Marshal(body)
@@ -290,7 +294,11 @@ func (c *Client) UpdateOrgVariable(org string, variable types.Variable) error {
 		"visibility": visibility,
 	}
 	if visibility == "selected" {
-		body["selected_repository_ids"] = variable.SelectedRepositoryIDs
+		ids := variable.SelectedRepositoryIDs
+		if ids == nil {
+			ids = []int64{}
+		}
+		body["selected_repository_ids"] = ids
 	}
 
 	bodyBytes, err := json.Marshal(body)
