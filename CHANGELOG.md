@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Organization Variable Visibility Scope**: Support for setting org variable visibility (`all`, `private`, `selected`) with `--org-visibility` flag (#30)
+- **Data Residency Support**: Added `--source-hostname` and `--target-hostname` flags for GitHub Enterprise Server / data residency scenarios (#29)
+- **Pre-flight PAT Permission Validation**: Validate PAT permissions before starting variable migration (#28)
+- **Rate Limit Monitoring**: Improved rate limit monitoring and handling during variable migration (#27)
+- **Pre-commit Hook**: Added pre-commit hook for Go linting
+
+### Fixed
+- Harmonized PATs used for authentication (#31)
+
+### Changed
+- Use empty array instead of nil for repository IDs when visibility scope is not `selected` (#32)
+
 ## [v0.2.0] - 2026-01-29
 
 ### Added
