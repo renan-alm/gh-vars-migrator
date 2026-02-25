@@ -5,13 +5,13 @@ import (
 	"testing"
 )
 
-// TestResolveTokens_BothPATsProvided tests when both source and target PATs are explicitly provided
+// TestResolveTokens_BothPATsProvided tests that explicit PATs override GITHUB_TOKEN
 func TestResolveTokens_BothPATsProvided(t *testing.T) {
 	// Save original values
 	origSourcePAT := sourcePAT
 	origTargetPAT := targetPAT
 	origGitHubToken := os.Getenv("GITHUB_TOKEN")
-	
+
 	// Clean up after test
 	defer func() {
 		sourcePAT = origSourcePAT
@@ -42,13 +42,13 @@ func TestResolveTokens_BothPATsProvided(t *testing.T) {
 	}
 }
 
-// TestResolveTokens_GitHubTokenFallback tests when GITHUB_TOKEN is used as fallback
+// TestResolveTokens_GitHubTokenFallback tests that GITHUB_TOKEN is used as the primary token for both sides
 func TestResolveTokens_GitHubTokenFallback(t *testing.T) {
 	// Save original values
 	origSourcePAT := sourcePAT
 	origTargetPAT := targetPAT
 	origGitHubToken := os.Getenv("GITHUB_TOKEN")
-	
+
 	// Clean up after test
 	defer func() {
 		sourcePAT = origSourcePAT
@@ -79,13 +79,13 @@ func TestResolveTokens_GitHubTokenFallback(t *testing.T) {
 	}
 }
 
-// TestResolveTokens_MixedMode tests when one PAT is provided and GITHUB_TOKEN fills the gap
+// TestResolveTokens_MixedMode tests that a PAT overrides GITHUB_TOKEN only for its side
 func TestResolveTokens_MixedMode(t *testing.T) {
 	// Save original values
 	origSourcePAT := sourcePAT
 	origTargetPAT := targetPAT
 	origGitHubToken := os.Getenv("GITHUB_TOKEN")
-	
+
 	// Clean up after test
 	defer func() {
 		sourcePAT = origSourcePAT
@@ -134,13 +134,13 @@ func TestResolveTokens_MixedMode(t *testing.T) {
 	}
 }
 
-// TestResolveTokens_NoTokensProvided tests fallback to GitHub CLI when no tokens are available
+// TestResolveTokens_NoTokensProvided tests fallback to GitHub CLI when neither GITHUB_TOKEN nor PATs are set
 func TestResolveTokens_NoTokensProvided(t *testing.T) {
 	// Save original values
 	origSourcePAT := sourcePAT
 	origTargetPAT := targetPAT
 	origGitHubToken := os.Getenv("GITHUB_TOKEN")
-	
+
 	// Clean up after test
 	defer func() {
 		sourcePAT = origSourcePAT
@@ -172,13 +172,14 @@ func TestResolveTokens_NoTokensProvided(t *testing.T) {
 	}
 }
 
-// TestResolveTokens_OnlySourcePATNoFallback tests error when only source PAT and no fallback
+// TestResolveTokens_OnlySourcePATNoFallback tests error when a PAT is set for one side but
+// GITHUB_TOKEN is not available to cover the other side
 func TestResolveTokens_OnlySourcePATNoFallback(t *testing.T) {
 	// Save original values
 	origSourcePAT := sourcePAT
 	origTargetPAT := targetPAT
 	origGitHubToken := os.Getenv("GITHUB_TOKEN")
-	
+
 	// Clean up after test
 	defer func() {
 		sourcePAT = origSourcePAT
