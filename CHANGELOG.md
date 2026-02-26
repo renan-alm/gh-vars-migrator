@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [v0.2.0] - 2026-01-29
+## [v0.5.0] - 2026-02-26
+
+### Changed
+
+- Normalize hostnames in migration tool (554f2a1)
+
+### Fixed
+
+- Improve error messages for authentication failures (8443b56)
+
 ## [v0.4.0] - 2026-02-26
 
 ### Added
