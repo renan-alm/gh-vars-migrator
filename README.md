@@ -252,22 +252,6 @@ make lint
 - `make clean` - Remove build artifacts
 - `make help` - Display help message
 
-## Release Process
-
-This project uses GitHub Actions to automatically build and release binaries for multiple platforms when a new tag is pushed.
-
-To create a new release:
-
-1. Tag a new version:
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-2. GitHub Actions will automatically:
-   - Build binaries for multiple platforms (Linux, macOS, Windows)
-   - Create a GitHub release
-   - Upload the binaries as release assets
 
 ## License
 
