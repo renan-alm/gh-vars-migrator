@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [v0.2.0] - 2026-01-29
+## [v0.4.0] - 2026-02-26
+
+### Added
+
+- Add lightweight .env file parser for environment vars (9a78d00)
+
+### Fixed
+
+- Update target hostname to api.mycompany.ghe.com (d1b2ad2)
+
+### Other
+
+- Remove release process instructions from README (dc5d1f1)
+
 ## [v0.3.0] - 2026-02-25
 
 ### Added
