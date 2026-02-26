@@ -460,16 +460,38 @@ func validatePermissions(sourceClient, targetClient *client.Client, mode types.M
 
 // validateAuth validates that both source and target clients are authenticated
 func validateAuth(sourceClient, targetClient *client.Client) error {
+	sourceHost := sourceHostname
+	if sourceHost == "" {
+		sourceHost = "github.com"
+	}
+	targetHost := targetHostname
+	if targetHost == "" {
+		targetHost = "github.com"
+	}
+
+	sourceLabel := credentialLabel(sourcePAT, os.Getenv("GITHUB_TOKEN"), "SOURCE_PAT", "GITHUB_TOKEN", "GitHub CLI")
+	targetLabel := credentialLabel(targetPAT, os.Getenv("GITHUB_TOKEN"), "TARGET_PAT", "GITHUB_TOKEN", "GitHub CLI")
+
 	// Validate source authentication
 	sourceUser, err := sourceClient.GetUser()
 	if err != nil {
-		return fmt.Errorf("source authentication failed: %w\n\nPlease check your source credentials", err)
+		return fmt.Errorf("source authentication failed against %s using %s: %w\n\n"+
+			"Hints:\n"+
+			"  • Verify that %s holds a valid, non-expired token\n"+
+			"  • Make sure the token has access to %s\n"+
+			"  • If targeting a custom host, set --source-hostname (env: SOURCE_HOSTNAME)",
+			sourceHost, sourceLabel, err, sourceLabel, sourceHost)
 	}
 
 	// Validate target authentication
 	targetUser, err := targetClient.GetUser()
 	if err != nil {
-		return fmt.Errorf("target authentication failed: %w\n\nPlease check your target credentials", err)
+		return fmt.Errorf("target authentication failed against %s using %s: %w\n\n"+
+			"Hints:\n"+
+			"  • Verify that %s holds a valid, non-expired token\n"+
+			"  • Make sure the token has access to %s\n"+
+			"  • If targeting a custom host, set --target-hostname (env: TARGET_HOSTNAME)",
+			targetHost, targetLabel, err, targetLabel, targetHost)
 	}
 
 	logger.Success("Source authenticated as: %s", sourceUser)
