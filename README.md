@@ -147,7 +147,7 @@ gh vars-migrator --source-org myorg --target-org targetorg --org-to-org \
 # Migrate from GitHub.com to a data-residency GHEC endpoint
 gh vars-migrator --source-org myorg --source-repo myrepo \
   --target-org targetorg --target-repo targetrepo \
-  --target-hostname mycompany.ghe.com \
+  --target-hostname api.mycompany.ghe.com \
   --source-pat ghp_sourcetoken \
   --target-pat ghp_targettoken
 
