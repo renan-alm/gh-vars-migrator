@@ -11,6 +11,10 @@ import (
 	"strings"
 )
 
+// loadedFromFile tracks variable names that were actually set by Load
+// (i.e. they were not already present in the shell environment).
+var loadedFromFile = make(map[string]bool)
+
 // Load reads a .env file and sets any variables that are not already
 // present in the environment. It silently returns nil when the file
 // does not exist so callers don't need to guard with os.Stat first.
@@ -50,6 +54,7 @@ func Load(path string) error {
 			if err := os.Setenv(key, value); err != nil {
 				return fmt.Errorf("setting env var %s: %w", key, err)
 			}
+			loadedFromFile[key] = true
 		}
 	}
 
@@ -80,4 +85,16 @@ func parseLine(line string) (string, string, error) {
 	}
 
 	return key, value, nil
+}
+
+// LoadedFromFile reports whether the given variable name was set by Load
+// (meaning it came from the .env file rather than the shell environment).
+func LoadedFromFile(key string) bool {
+	return loadedFromFile[key]
+}
+
+// ResetLoaded clears the loaded-from-file tracking. This is only
+// useful in tests.
+func ResetLoaded() {
+	loadedFromFile = make(map[string]bool)
 }

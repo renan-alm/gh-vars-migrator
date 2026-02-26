@@ -107,9 +107,10 @@ Data Residency:
   # Utility commands
   gh vars-migrator auth
   gh vars-migrator list --org myorg`,
-	Version: Version,
-	PreRunE: validateFlags,
-	RunE:    runMigration,
+	Version:       Version,
+	PreRunE:       validateFlags,
+	RunE:          runMigration,
+	SilenceErrors: true, // we handle error display via logger.Error
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -152,12 +153,94 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output")
 }
 
+// normalizeHostname strips scheme prefixes (https://, http://) and
+// trailing slashes from a hostname value so that users can pass either
+// "api.myco.ghe.com" or "https://api.myco.ghe.com" and the tool works
+// the same way.
+func normalizeHostname(h string) string {
+	h = strings.TrimPrefix(h, "https://")
+	h = strings.TrimPrefix(h, "http://")
+	h = strings.TrimRight(h, "/")
+	return h
+}
+
 // envBool returns true when the environment variable identified by key
 // is set to a truthy value ("1", "true", "yes"). Any other value or an
 // unset variable returns false.
 func envBool(key string) bool {
 	v := strings.ToLower(os.Getenv(key))
 	return v == "1" || v == "true" || v == "yes"
+}
+
+// flagSource returns a human-readable label for where a flag's value
+// originated. The priority order mirrors the one documented in the CLI
+// help: CLI flag → shell env var → .env file → default.
+func flagSource(cmd *cobra.Command, flagName, envKey string) string {
+	if cmd.Flags().Changed(flagName) {
+		return "--" + flagName + " (CLI flag)"
+	}
+	if envKey != "" {
+		if envfile.LoadedFromFile(envKey) {
+			return envKey + " (.env file)"
+		}
+		if _, ok := os.LookupEnv(envKey); ok {
+			return envKey + " (env var)"
+		}
+	}
+	return "default"
+}
+
+// logResolvedConfig prints a configuration summary showing every
+// resolved value together with its provenance so the user can
+// immediately see which source (CLI flag, env var, .env file)
+// won for each setting.
+func logResolvedConfig(cmd *cobra.Command, mode types.MigrationMode) {
+	switch mode {
+	case types.ModeOrgToOrg:
+		logger.Info("gh-vars-migrator - Organization Variable Migration")
+	case types.ModeRepoToRepo:
+		logger.Info("gh-vars-migrator - Repository Variable Migration")
+	}
+	logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+	// Source configuration
+	logger.Info("Source Org:      %s  ← %s", sourceOrg, flagSource(cmd, "source-org", "SOURCE_ORG"))
+	if sourceRepo != "" {
+		logger.Info("Source Repo:     %s  ← %s", sourceRepo, flagSource(cmd, "source-repo", "SOURCE_REPO"))
+	}
+	if sourceHostname != "" {
+		logger.Info("Source Hostname: %s  ← %s", sourceHostname, flagSource(cmd, "source-hostname", "SOURCE_HOSTNAME"))
+	} else {
+		logger.Info("Source Hostname: github.com (default)")
+	}
+
+	// Target configuration
+	logger.Info("Target Org:      %s  ← %s", targetOrg, flagSource(cmd, "target-org", "TARGET_ORG"))
+	if targetRepo != "" {
+		logger.Info("Target Repo:     %s  ← %s", targetRepo, flagSource(cmd, "target-repo", "TARGET_REPO"))
+	}
+	if targetHostname != "" {
+		logger.Info("Target Hostname: %s  ← %s", targetHostname, flagSource(cmd, "target-hostname", "TARGET_HOSTNAME"))
+	} else {
+		logger.Info("Target Hostname: github.com (default)")
+	}
+
+	// Mode-specific details
+	if mode == types.ModeOrgToOrg {
+		logger.Info("Org Visibility:  preserve source")
+	}
+	if mode == types.ModeRepoToRepo {
+		if skipEnvs {
+			logger.Info("Skip Envs:       true  ← %s", flagSource(cmd, "skip-envs", "SKIP_ENVS"))
+		} else {
+			logger.Info("Environments:    auto-discover and migrate")
+		}
+	}
+
+	// Common options
+	logger.Info("Dry-run:         %v  ← %s", dryRun, flagSource(cmd, "dry-run", "DRY_RUN"))
+	logger.Info("Force:           %v  ← %s", force, flagSource(cmd, "force", "FORCE"))
+	logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 }
 
 // validateFlags validates the flags based on the detected migration mode
@@ -175,6 +258,10 @@ func validateFlags(cmd *cobra.Command, args []string) error {
 
 	// Suppress usage on runtime errors
 	cmd.SilenceUsage = true
+
+	// Normalise hostnames: strip scheme prefixes users may copy-paste by mistake.
+	sourceHostname = normalizeHostname(sourceHostname)
+	targetHostname = normalizeHostname(targetHostname)
 
 	// Validate required flags
 	if sourceOrg == "" {
@@ -258,48 +345,16 @@ func runMigration(cmd *cobra.Command, args []string) error {
 	}
 
 	// Set mode-specific configuration
-	switch mode {
-	case types.ModeOrgToOrg:
-		logger.Info("gh-vars-migrator - Organization Variable Migration")
-		logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		logger.Info("Source: %s", sourceOrg)
-		if sourceHostname != "" {
-			logger.Info("Source Host: %s", sourceHostname)
-		}
-		logger.Info("Target: %s", targetOrg)
-		if targetHostname != "" {
-			logger.Info("Target Host: %s", targetHostname)
-		}
-		logger.Info("Org Visibility: preserve source")
-
-	case types.ModeRepoToRepo:
+	if mode == types.ModeRepoToRepo {
 		cfg.SourceOwner = sourceOrg
 		cfg.SourceRepo = sourceRepo
 		cfg.TargetOwner = targetOrg
 		cfg.TargetRepo = targetRepo
 		cfg.SkipEnvs = skipEnvs
-
-		logger.Info("gh-vars-migrator - Repository Variable Migration")
-		logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		logger.Info("Source: %s/%s", cfg.SourceOwner, cfg.SourceRepo)
-		if sourceHostname != "" {
-			logger.Info("Source Host: %s", sourceHostname)
-		}
-		logger.Info("Target: %s/%s", cfg.TargetOwner, cfg.TargetRepo)
-		if targetHostname != "" {
-			logger.Info("Target Host: %s", targetHostname)
-		}
-		if skipEnvs {
-			logger.Info("Skip Environments: true")
-		} else {
-			logger.Info("Environments: auto-discover and migrate")
-		}
 	}
 
-	// Common configuration display
-	logger.Info("Dry-run: %v", dryRun)
-	logger.Info("Force: %v", force)
-	logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	// Print resolved configuration with provenance
+	logResolvedConfig(cmd, mode)
 
 	// Create and run migrator with both clients
 	m, err := migrator.New(cfg, sourceClient, targetClient)
