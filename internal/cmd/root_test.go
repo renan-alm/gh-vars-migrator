@@ -201,3 +201,43 @@ func TestResolveTokens_OnlySourcePATNoFallback(t *testing.T) {
 		t.Fatal("Expected error when only source PAT provided without GITHUB_TOKEN, got nil")
 	}
 }
+
+// TestEnvBool tests that envBool correctly parses boolean environment variables
+func TestEnvBool(t *testing.T) {
+	const key = "TEST_ENV_BOOL_VAR"
+
+	tests := []struct {
+		name string
+		val  string
+		set  bool
+		want bool
+	}{
+		{"true", "true", true, true},
+		{"TRUE", "TRUE", true, true},
+		{"True", "True", true, true},
+		{"1", "1", true, true},
+		{"yes", "yes", true, true},
+		{"YES", "YES", true, true},
+		{"false", "false", true, false},
+		{"0", "0", true, false},
+		{"no", "no", true, false},
+		{"empty", "", true, false},
+		{"unset", "", false, false},
+		{"random", "random", true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.set {
+				t.Setenv(key, tt.val)
+			} else {
+				_ = os.Unsetenv(key)
+			}
+
+			got := envBool(key)
+			if got != tt.want {
+				t.Errorf("envBool(%q) with value %q = %v, want %v", key, tt.val, got, tt.want)
+			}
+		})
+	}
+}

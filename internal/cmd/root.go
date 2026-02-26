@@ -3,9 +3,11 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/renan-alm/gh-vars-migrator/internal/client"
+	"github.com/renan-alm/gh-vars-migrator/internal/envfile"
 	"github.com/renan-alm/gh-vars-migrator/internal/logger"
 	"github.com/renan-alm/gh-vars-migrator/internal/migrator"
 	"github.com/renan-alm/gh-vars-migrator/internal/types"
@@ -119,28 +121,43 @@ func Execute() {
 }
 
 func init() {
+	// Load .env file before registering flags so that os.Getenv picks up
+	// file-defined values. Variables already set in the real environment
+	// are never overwritten, and CLI flags always override env vars.
+	if err := envfile.Load(".env"); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to load .env file: %v\n", err)
+	}
+
 	// Source flags
-	rootCmd.Flags().StringVar(&sourceOrg, "source-org", "", "Source organization name (required)")
-	rootCmd.Flags().StringVar(&sourceRepo, "source-repo", "", "Source repository name (required for repo-to-repo)")
+	rootCmd.Flags().StringVar(&sourceOrg, "source-org", os.Getenv("SOURCE_ORG"), "Source organization name (required) (env: SOURCE_ORG)")
+	rootCmd.Flags().StringVar(&sourceRepo, "source-repo", os.Getenv("SOURCE_REPO"), "Source repository name (required for repo-to-repo) (env: SOURCE_REPO)")
 	rootCmd.Flags().StringVar(&sourcePAT, "source-pat", os.Getenv("SOURCE_PAT"), "Source personal access token; overrides GITHUB_TOKEN (env: SOURCE_PAT)")
-	rootCmd.Flags().StringVar(&sourceHostname, "source-hostname", "", "Source GitHub hostname for data residency (e.g., github.mycompany.com)")
+	rootCmd.Flags().StringVar(&sourceHostname, "source-hostname", os.Getenv("SOURCE_HOSTNAME"), "Source GitHub hostname for data residency (env: SOURCE_HOSTNAME)")
 
 	// Target flags
-	rootCmd.Flags().StringVar(&targetOrg, "target-org", "", "Target organization name (required)")
-	rootCmd.Flags().StringVar(&targetRepo, "target-repo", "", "Target repository name (required for repo-to-repo)")
+	rootCmd.Flags().StringVar(&targetOrg, "target-org", os.Getenv("TARGET_ORG"), "Target organization name (required) (env: TARGET_ORG)")
+	rootCmd.Flags().StringVar(&targetRepo, "target-repo", os.Getenv("TARGET_REPO"), "Target repository name (required for repo-to-repo) (env: TARGET_REPO)")
 	rootCmd.Flags().StringVar(&targetPAT, "target-pat", os.Getenv("TARGET_PAT"), "Target personal access token; overrides GITHUB_TOKEN (env: TARGET_PAT)")
-	rootCmd.Flags().StringVar(&targetHostname, "target-hostname", "", "Target GitHub hostname for data residency (e.g., github.mycompany.com)")
+	rootCmd.Flags().StringVar(&targetHostname, "target-hostname", os.Getenv("TARGET_HOSTNAME"), "Target GitHub hostname for data residency (env: TARGET_HOSTNAME)")
 
 	// Mode flags
-	rootCmd.Flags().BoolVar(&orgToOrg, "org-to-org", false, "Migrate organization variables only")
-	rootCmd.Flags().BoolVar(&skipEnvs, "skip-envs", false, "Skip environment variable migration during repo-to-repo")
+	rootCmd.Flags().BoolVar(&orgToOrg, "org-to-org", envBool("ORG_TO_ORG"), "Migrate organization variables only (env: ORG_TO_ORG)")
+	rootCmd.Flags().BoolVar(&skipEnvs, "skip-envs", envBool("SKIP_ENVS"), "Skip environment variable migration during repo-to-repo (env: SKIP_ENVS)")
 
 	// Option flags
-	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview changes without applying them")
-	rootCmd.Flags().BoolVar(&force, "force", false, "Overwrite existing variables in target")
+	rootCmd.Flags().BoolVar(&dryRun, "dry-run", envBool("DRY_RUN"), "Preview changes without applying them (env: DRY_RUN)")
+	rootCmd.Flags().BoolVar(&force, "force", envBool("FORCE"), "Overwrite existing variables in target (env: FORCE)")
 
 	// Global flags
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output")
+}
+
+// envBool returns true when the environment variable identified by key
+// is set to a truthy value ("1", "true", "yes"). Any other value or an
+// unset variable returns false.
+func envBool(key string) bool {
+	v := strings.ToLower(os.Getenv(key))
+	return v == "1" || v == "true" || v == "yes"
 }
 
 // validateFlags validates the flags based on the detected migration mode

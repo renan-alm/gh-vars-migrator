@@ -66,6 +66,10 @@ export SOURCE_PAT=ghp_sourcetoken123
 export TARGET_PAT=ghp_targettoken456
 gh vars-migrator --source-org srcorg --target-org tgtorg --org-to-org
 
+# Using a .env file (see .env.example)
+# All CLI flags can be set via environment variables in a .env file
+gh vars-migrator
+
 # Using GITHUB_TOKEN for both source and target
 export GITHUB_TOKEN=ghp_yourtoken
 gh vars-migrator --source-org srcorg --target-org tgtorg --org-to-org
@@ -159,29 +163,54 @@ gh vars-migrator --source-org myorg --target-org targetorg --org-to-org \
 
 ### Command Options
 
+Every flag can also be set via its corresponding environment variable. Values are resolved in this order (highest priority first):
+
+1. **CLI flag** — always wins
+2. **Environment variable** — from the shell or a `.env` file in the working directory
+
+Copy `.env.example` to `.env` and fill in the values you need. Variables already exported in your shell are never overwritten by the `.env` file.
+
 #### Source and Target
-- `--source-org` (required): Source organization name
-- `--source-repo`: Source repository name (required for repo-to-repo)
-- `--target-org` (required): Target organization name
-- `--target-repo`: Target repository name (required for repo-to-repo)
+
+| Flag | Env Variable | Description |
+|------|-------------|-------------|
+| `--source-org` | `SOURCE_ORG` | Source organization name (required) |
+| `--source-repo` | `SOURCE_REPO` | Source repository name (required for repo-to-repo) |
+| `--target-org` | `TARGET_ORG` | Target organization name (required) |
+| `--target-repo` | `TARGET_REPO` | Target repository name (required for repo-to-repo) |
 
 #### Authentication
-- `--source-pat`: Source personal access token (env: `SOURCE_PAT`)
-- `--target-pat`: Target personal access token (env: `TARGET_PAT`)
-- If neither PAT is provided, falls back to `GITHUB_TOKEN` or GitHub CLI auth
+
+| Flag | Env Variable | Description |
+|------|-------------|-------------|
+| `--source-pat` | `SOURCE_PAT` | Source personal access token; overrides `GITHUB_TOKEN` |
+| `--target-pat` | `TARGET_PAT` | Target personal access token; overrides `GITHUB_TOKEN` |
+| — | `GITHUB_TOKEN` | Shared token used for both source and target when PATs are not set |
+
+If neither PAT is provided, falls back to `GITHUB_TOKEN` or GitHub CLI auth.
 
 #### Data Residency
-- `--source-hostname`: Custom GitHub hostname for the source (e.g., `github.mycompany.com`). Use for GitHub Enterprise Server or data-residency GitHub Enterprise Cloud instances.
-- `--target-hostname`: Custom GitHub hostname for the target (e.g., `github.mycompany.com`). Use for GitHub Enterprise Server or data-residency GitHub Enterprise Cloud instances.
-- When a hostname flag is omitted, the corresponding client defaults to `github.com`.
+
+| Flag | Env Variable | Description |
+|------|-------------|-------------|
+| `--source-hostname` | `SOURCE_HOSTNAME` | Custom GitHub hostname for the source (e.g., `api.mycompany.ghe.com`) |
+| `--target-hostname` | `TARGET_HOSTNAME` | Custom GitHub hostname for the target (e.g., `api.mycompany.ghe.com`) |
+
+When a hostname flag is omitted, the corresponding client defaults to `github.com`.
 
 #### Mode Options
-- `--org-to-org`: Flag to enable organization-level migration mode
-- `--skip-envs`: Skip environment variable migration during repo-to-repo (environments are auto-discovered by default)
+
+| Flag | Env Variable | Description |
+|------|-------------|-------------|
+| `--org-to-org` | `ORG_TO_ORG` | Enable organization-level migration mode |
+| `--skip-envs` | `SKIP_ENVS` | Skip environment variable migration during repo-to-repo |
 
 #### Behavior Options
-- `--dry-run`: Preview changes without applying them
-- `--force`: Overwrite existing variables in the target
+
+| Flag | Env Variable | Description |
+|------|-------------|-------------|
+| `--dry-run` | `DRY_RUN` | Preview changes without applying them |
+| `--force` | `FORCE` | Overwrite existing variables in the target |
 
 ### Global Options
 
