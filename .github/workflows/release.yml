@@ -206,7 +206,7 @@ jobs:
 
       - name: Upload release notes artifact
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: release-notes
           path: /tmp/release_notes.md
@@ -281,7 +281,7 @@ jobs:
         shell: bash
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7.0.0
         with:
           name: binary-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*
@@ -296,7 +296,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: dist
           pattern: binary-*
@@ -319,7 +319,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download release notes
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           name: release-notes
