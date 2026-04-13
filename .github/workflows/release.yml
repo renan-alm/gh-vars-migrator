@@ -206,7 +206,7 @@ jobs:
 
       - name: Upload release notes artifact
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: release-notes
           path: /tmp/release_notes.md
@@ -281,7 +281,7 @@ jobs:
         shell: bash
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v7.0.0
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: binary-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*
@@ -308,7 +308,7 @@ jobs:
           sha256sum ./* > checksums.txt
 
       - name: Create GitHub Release (initial)
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           files: |
