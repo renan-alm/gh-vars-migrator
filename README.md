@@ -7,6 +7,8 @@
 
 GitHub CLI extension for migrating GitHub Actions variables between organizations, repositories, and environments.
 
+If you are curious, try out also [GitHub Secrets Migrator](https://github.com/renan-alm/gh-secrets-migrator) - a companion tool for migrating GitHub repository secrets!
+
 ## Installation
 
 ### Prerequisites
