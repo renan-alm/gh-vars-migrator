@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [v0.2.0] - 2026-01-29
+## [v1.0.0] - 2026-04-28
+
+### Changed
+
+- Update variable names to use "skip-overwrite" instead of "force" (#37) (aa4aa90)
+- bump the actions group with 2 updates (#36) (da0d8ff)
+- bump the actions group across 1 directory with 6 updates (#35) (b1b0a21)
+
 ## [v0.5.0] - 2026-02-26
 
 ### Changed
