@@ -72,8 +72,8 @@ type MigrationConfig struct {
 	SkipEnvs bool
 
 	// Options
-	DryRun bool
-	Force  bool
+	DryRun        bool
+	SkipOverwrite bool
 }
 
 // MigrationResult holds the result of a migration

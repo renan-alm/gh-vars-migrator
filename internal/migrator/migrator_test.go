@@ -78,14 +78,14 @@ func TestMigrator_InvalidConfig(t *testing.T) {
 // TestMigrationMode_RepoToRepo verifies repo-to-repo mode logic
 func TestMigrationMode_RepoToRepo(t *testing.T) {
 	cfg := &types.MigrationConfig{
-		Mode:        types.ModeRepoToRepo,
-		SourceOwner: "src-owner",
-		SourceRepo:  "src-repo",
-		TargetOwner: "tgt-owner",
-		TargetRepo:  "tgt-repo",
-		DryRun:      true,
-		Force:       false,
-		SkipEnvs:    true,
+		Mode:          types.ModeRepoToRepo,
+		SourceOwner:   "src-owner",
+		SourceRepo:    "src-repo",
+		TargetOwner:   "tgt-owner",
+		TargetRepo:    "tgt-repo",
+		DryRun:        true,
+		SkipOverwrite: false,
+		SkipEnvs:      true,
 	}
 
 	// Verify configuration properties
@@ -97,8 +97,8 @@ func TestMigrationMode_RepoToRepo(t *testing.T) {
 		t.Error("Expected DryRun to be true")
 	}
 
-	if cfg.Force {
-		t.Error("Expected Force to be false")
+	if cfg.SkipOverwrite {
+		t.Error("Expected SkipOverwrite to be false")
 	}
 
 	if !cfg.SkipEnvs {
@@ -109,11 +109,11 @@ func TestMigrationMode_RepoToRepo(t *testing.T) {
 // TestMigrationMode_OrgToOrg verifies org-to-org mode logic
 func TestMigrationMode_OrgToOrg(t *testing.T) {
 	cfg := &types.MigrationConfig{
-		Mode:      types.ModeOrgToOrg,
-		SourceOrg: "source-org",
-		TargetOrg: "target-org",
-		DryRun:    false,
-		Force:     true,
+		Mode:          types.ModeOrgToOrg,
+		SourceOrg:     "source-org",
+		TargetOrg:     "target-org",
+		DryRun:        false,
+		SkipOverwrite: true,
 	}
 
 	if cfg.Mode != types.ModeOrgToOrg {
@@ -124,8 +124,8 @@ func TestMigrationMode_OrgToOrg(t *testing.T) {
 		t.Error("Expected DryRun to be false")
 	}
 
-	if !cfg.Force {
-		t.Error("Expected Force to be true")
+	if !cfg.SkipOverwrite {
+		t.Error("Expected SkipOverwrite to be true")
 	}
 }
 
@@ -181,30 +181,30 @@ func TestDryRunBehavior(t *testing.T) {
 	}
 }
 
-// TestForceUpdateBehavior verifies force mode overwrites existing variables
-func TestForceUpdateBehavior(t *testing.T) {
+// TestSkipOverwriteBehavior verifies skip-overwrite mode preserves existing variables
+func TestSkipOverwriteBehavior(t *testing.T) {
 	cfg := &types.MigrationConfig{
-		Mode:        types.ModeRepoToRepo,
-		SourceOwner: "source",
-		SourceRepo:  "repo",
-		TargetOwner: "target",
-		TargetRepo:  "repo",
-		Force:       true,
+		Mode:          types.ModeRepoToRepo,
+		SourceOwner:   "source",
+		SourceRepo:    "repo",
+		TargetOwner:   "target",
+		TargetRepo:    "repo",
+		SkipOverwrite: true,
 	}
 
-	if !cfg.Force {
-		t.Error("Expected Force flag to be set")
+	if !cfg.SkipOverwrite {
+		t.Error("Expected SkipOverwrite flag to be set")
 	}
 
-	// When Force is true, existing variables should be updated
-	// When Force is false, existing variables should be skipped
+	// When SkipOverwrite is true, existing variables should be skipped
+	// When SkipOverwrite is false (default), existing variables should be updated
 	result := &types.MigrationResult{
-		Updated: 5, // 5 vars updated because force=true
-		Skipped: 0,
+		Updated: 0, // 0 vars updated because skip-overwrite=true
+		Skipped: 5, // 5 vars skipped because skip-overwrite=true
 	}
 
-	if result.Updated != 5 {
-		t.Errorf("Expected 5 updates with force=true, got %d", result.Updated)
+	if result.Skipped != 5 {
+		t.Errorf("Expected 5 skipped with skip-overwrite=true, got %d", result.Skipped)
 	}
 }
 

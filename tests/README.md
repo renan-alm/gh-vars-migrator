@@ -28,7 +28,7 @@ Unit tests are located alongside the source code in each package:
 - **`internal/migrator/migrator_test.go`**: Tests for migration logic
   - Configuration validation
   - Migration mode behaviors (repo-to-repo with auto-discovery, org-to-org)
-  - Dry-run and force update scenarios
+  - Dry-run and skip-overwrite scenarios
   - Error handling and accumulation
   - Tests validate logic paths without requiring actual API calls
 
@@ -44,7 +44,7 @@ Integration tests are located in `tests/integration/`:
 - **`integration_test.go`**: End-to-end workflow tests
   - Configuration validation workflows
   - Migration result tracking across full workflows
-  - Dry-run and force update workflows
+  - Dry-run and skip-overwrite workflows
   - Environment auto-discovery scenarios
   - Error handling across the entire migration pipeline
   - Configuration descriptions for all modes
@@ -111,7 +111,7 @@ go test -race ./...
 
 #### For Migrator Package  
 - Tests validate configuration handling and migration logic
-- Dry-run and force mode behaviors are tested without actual API calls
+- Dry-run and skip-overwrite mode behaviors are tested without actual API calls
 - Error handling and result tracking are thoroughly tested
 
 #### For Integration Tests

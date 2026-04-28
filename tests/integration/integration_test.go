@@ -42,10 +42,10 @@ func TestEndToEnd_ConfigValidation(t *testing.T) {
 		{
 			name: "valid_org_to_org",
 			config: &types.MigrationConfig{
-				Mode:      types.ModeOrgToOrg,
-				SourceOrg: "source-org",
-				TargetOrg: "target-org",
-				Force:     true,
+				Mode:          types.ModeOrgToOrg,
+				SourceOrg:     "source-org",
+				TargetOrg:     "target-org",
+				SkipOverwrite: true,
 			},
 			wantErr: false,
 		},
@@ -86,7 +86,7 @@ func TestEndToEnd_MigrationResultTracking(t *testing.T) {
 	// Simulate a migration that:
 	// - Creates 5 new variables
 	// - Updates 3 existing variables
-	// - Skips 2 variables (already exist, no force flag)
+	// - Skips 2 variables (already exist, --skip-overwrite)
 	// - Encounters 1 error
 	result.Created = 5
 	result.Updated = 3
@@ -113,13 +113,13 @@ func TestEndToEnd_MigrationResultTracking(t *testing.T) {
 func TestEndToEnd_DryRunWorkflow(t *testing.T) {
 	// Test that dry-run configuration is properly set and validated
 	cfg := &types.MigrationConfig{
-		Mode:        types.ModeRepoToRepo,
-		SourceOwner: "source",
-		SourceRepo:  "repo",
-		TargetOwner: "target",
-		TargetRepo:  "repo",
-		DryRun:      true,
-		Force:       false,
+		Mode:          types.ModeRepoToRepo,
+		SourceOwner:   "source",
+		SourceRepo:    "repo",
+		TargetOwner:   "target",
+		TargetRepo:    "repo",
+		DryRun:        true,
+		SkipOverwrite: false,
 	}
 
 	// Validate config
@@ -150,39 +150,39 @@ func TestEndToEnd_DryRunWorkflow(t *testing.T) {
 	}
 }
 
-// TestEndToEnd_ForceUpdateWorkflow tests the force update workflow
-func TestEndToEnd_ForceUpdateWorkflow(t *testing.T) {
+// TestEndToEnd_SkipOverwriteWorkflow tests the skip-overwrite workflow
+func TestEndToEnd_SkipOverwriteWorkflow(t *testing.T) {
 	cfg := &types.MigrationConfig{
-		Mode:        types.ModeRepoToRepo,
-		SourceOwner: "source",
-		SourceRepo:  "repo",
-		TargetOwner: "target",
-		TargetRepo:  "repo",
-		Force:       true,
-		DryRun:      false,
+		Mode:          types.ModeRepoToRepo,
+		SourceOwner:   "source",
+		SourceRepo:    "repo",
+		TargetOwner:   "target",
+		TargetRepo:    "repo",
+		SkipOverwrite: true,
+		DryRun:        false,
 	}
 
 	if err := config.Validate(cfg); err != nil {
 		t.Fatalf("Config validation failed: %v", err)
 	}
 
-	if !cfg.Force {
-		t.Error("Expected Force flag to be set")
+	if !cfg.SkipOverwrite {
+		t.Error("Expected SkipOverwrite flag to be set")
 	}
 
-	// With force=true, existing variables should be updated
+	// With skip-overwrite=true, existing variables should be skipped
 	result := &types.MigrationResult{
 		Created: 3, // 3 new variables
-		Updated: 7, // 7 existing variables updated due to force flag
-		Skipped: 0, // 0 skipped because force=true
+		Updated: 0, // 0 existing variables updated due to skip-overwrite
+		Skipped: 7, // 7 skipped because skip-overwrite=true
 	}
 
-	if result.Updated != 7 {
-		t.Errorf("Expected 7 updates with force=true, got %d", result.Updated)
+	if result.Updated != 0 {
+		t.Errorf("Expected 0 updates with skip-overwrite=true, got %d", result.Updated)
 	}
 
-	if result.Skipped != 0 {
-		t.Errorf("Expected 0 skipped with force=true, got %d", result.Skipped)
+	if result.Skipped != 7 {
+		t.Errorf("Expected 7 skipped with skip-overwrite=true, got %d", result.Skipped)
 	}
 }
 

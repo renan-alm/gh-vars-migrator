@@ -149,8 +149,8 @@ func (m *Migrator) migrateRepoVariable(variable types.Variable, result *types.Mi
 
 	if err == nil && existingVar != nil {
 		// Variable exists in target
-		if !m.config.Force {
-			logger.Warning("Variable '%s' already exists in target (use --force to overwrite)", variable.Name)
+		if m.config.SkipOverwrite {
+			logger.Warning("Variable '%s' already exists in target, overwrite skipped (--skip-overwrite)", variable.Name)
 			result.Skipped++
 			return nil
 		}
@@ -194,8 +194,8 @@ func (m *Migrator) migrateEnvVariable(envName string, variable types.Variable, r
 
 	if err == nil && existingVar != nil {
 		// Variable exists in target environment
-		if !m.config.Force {
-			logger.Warning("Environment variable '%s' already exists in target (use --force to overwrite)", variable.Name)
+		if m.config.SkipOverwrite {
+			logger.Warning("Environment variable '%s' already exists in target, overwrite skipped (--skip-overwrite)", variable.Name)
 			result.Skipped++
 			return nil
 		}

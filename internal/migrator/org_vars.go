@@ -89,8 +89,8 @@ func (m *Migrator) migrateOrgVariable(variable types.Variable, result *types.Mig
 
 	if err == nil && existingVar != nil {
 		// Variable exists in target
-		if !m.config.Force {
-			logger.Warning("Variable '%s' already exists in target (use --force to overwrite)", variable.Name)
+		if m.config.SkipOverwrite {
+			logger.Warning("Variable '%s' already exists in target, overwrite skipped (--skip-overwrite)", variable.Name)
 			result.Skipped++
 			return nil
 		}

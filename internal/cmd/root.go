@@ -35,8 +35,8 @@ var (
 	skipEnvs bool
 
 	// Option flags
-	dryRun bool
-	force  bool
+	dryRun        bool
+	skipOverwrite bool
 )
 
 // rootCmd represents the base command
@@ -50,7 +50,7 @@ It supports:
   • Organization to organization variable migration (with automatic visibility preservation)
   • Repository to repository variable migration (with auto-discovery of environments)
   • Dry-run mode to preview changes before applying
-  • Force mode to overwrite existing variables
+  • Skip-overwrite mode to preserve existing variables in the target
   • Data residency compliance via custom GitHub hostnames
 
 Mode Detection:
@@ -87,8 +87,8 @@ Data Residency:
   # Dry-run mode (preview changes)
   gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --dry-run
 
-  # Force overwrite existing variables
-  gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --force
+  # Skip overwriting existing variables in the target
+  gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --skip-overwrite
 
   # Using explicit PATs for different accounts
   gh vars-migrator --source-org myorg --target-org targetorg --org-to-org \
@@ -147,7 +147,7 @@ func init() {
 
 	// Option flags
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", envBool("DRY_RUN"), "Preview changes without applying them (env: DRY_RUN)")
-	rootCmd.Flags().BoolVar(&force, "force", envBool("FORCE"), "Overwrite existing variables in target (env: FORCE)")
+	rootCmd.Flags().BoolVar(&skipOverwrite, "skip-overwrite", envBool("SKIP_OVERWRITE"), "Skip overwriting existing variables in target (env: SKIP_OVERWRITE)")
 
 	// Global flags
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output")
@@ -239,7 +239,7 @@ func logResolvedConfig(cmd *cobra.Command, mode types.MigrationMode) {
 
 	// Common options
 	logger.Info("Dry-run:         %v  ← %s", dryRun, flagSource(cmd, "dry-run", "DRY_RUN"))
-	logger.Info("Force:           %v  ← %s", force, flagSource(cmd, "force", "FORCE"))
+	logger.Info("Skip Overwrite:  %v  ← %s", skipOverwrite, flagSource(cmd, "skip-overwrite", "SKIP_OVERWRITE"))
 	logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 }
 
@@ -337,11 +337,11 @@ func runMigration(cmd *cobra.Command, args []string) error {
 
 	// Build migration configuration
 	cfg := &types.MigrationConfig{
-		Mode:      mode,
-		SourceOrg: sourceOrg,
-		TargetOrg: targetOrg,
-		DryRun:    dryRun,
-		Force:     force,
+		Mode:          mode,
+		SourceOrg:     sourceOrg,
+		TargetOrg:     targetOrg,
+		DryRun:        dryRun,
+		SkipOverwrite: skipOverwrite,
 	}
 
 	// Set mode-specific configuration
