@@ -71,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Repository to Repository Migration**: Migrate repository-level variables between repositories
 - **Automatic Environment Discovery**: Auto-discover all environments in source repository, create them in target if they don't exist, and migrate all environment variables
 - **Dry-run Mode**: Preview changes without applying them using `--dry-run` flag
-- **Force Mode**: Overwrite existing variables in target using `--force` flag
+- **Skip Overwrite Mode**: Option to skip overwriting existing variables in target using `--skip-overwrite` flag (variables are overwritten by default)
 - **Skip Environments**: Option to skip environment migration with `--skip-envs` flag
 - **Authentication Check**: `auth` subcommand to verify GitHub CLI authentication status
 - **List Variables**: `list` subcommand to list variables in an organization

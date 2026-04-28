@@ -99,8 +99,8 @@ gh vars-migrator --source-org myorg --target-org targetorg --org-to-org
 # Dry-run mode (preview changes)
 gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --dry-run
 
-# Force overwrite existing variables
-gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --force
+# Skip overwriting existing variables in the target
+gh vars-migrator --source-org myorg --target-org targetorg --org-to-org --skip-overwrite
 ```
 
 **Organization variable visibility**
@@ -212,7 +212,7 @@ When a hostname flag is omitted, the corresponding client defaults to `github.co
 | Flag | Env Variable | Description |
 |------|-------------|-------------|
 | `--dry-run` | `DRY_RUN` | Preview changes without applying them |
-| `--force` | `FORCE` | Overwrite existing variables in the target |
+| `--skip-overwrite` | `SKIP_OVERWRITE` | Skip overwriting existing variables in the target |
 
 ### Global Options
 
